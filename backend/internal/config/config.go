@@ -1,0 +1,77 @@
+package config
+
+import (
+	"fmt"
+	"os"
+	"strconv"
+)
+
+type Config struct {
+	Port                 string
+	Environment          string
+	DatabaseURL          string
+	JWTSecret            string
+	JWTExpirationHours   int
+	AnthropicAPIKey      string
+	AllowedOrigins       []string
+	RateLimitAuth        int
+	RateLimitAPI         int
+}
+
+func Load() (*Config, error) {
+	port := getEnv("PORT", "8080")
+	environment := getEnv("ENVIRONMENT", "development")
+	databaseURL := getEnv("DATABASE_URL", "")
+	jwtSecret := getEnv("JWT_SECRET", "")
+	jwtExpirationHours := getEnvAsInt("JWT_EXPIRATION_HOURS", 24)
+	anthropicAPIKey := getEnv("ANTHROPIC_API_KEY", "")
+	allowedOrigins := []string{
+		getEnv("ALLOWED_ORIGINS", "http://localhost:3000"),
+	}
+	rateLimitAuth := getEnvAsInt("RATE_LIMIT_AUTH", 5)
+	rateLimitAPI := getEnvAsInt("RATE_LIMIT_API", 100)
+
+	if databaseURL == "" {
+		return nil, fmt.Errorf("DATABASE_URL environment variable is required")
+	}
+
+	if jwtSecret == "" {
+		return nil, fmt.Errorf("JWT_SECRET environment variable is required")
+	}
+
+	if anthropicAPIKey == "" {
+		return nil, fmt.Errorf("ANTHROPIC_API_KEY environment variable is required")
+	}
+
+	return &Config{
+		Port:                 port,
+		Environment:          environment,
+		DatabaseURL:          databaseURL,
+		JWTSecret:            jwtSecret,
+		JWTExpirationHours:   jwtExpirationHours,
+		AnthropicAPIKey:      anthropicAPIKey,
+		AllowedOrigins:       allowedOrigins,
+		RateLimitAuth:        rateLimitAuth,
+		RateLimitAPI:         rateLimitAPI,
+	}, nil
+}
+
+func getEnv(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
+
+func getEnvAsInt(key string, defaultValue int) int {
+	valueStr := os.Getenv(key)
+	if valueStr == "" {
+		return defaultValue
+	}
+	value, err := strconv.Atoi(valueStr)
+	if err != nil {
+		return defaultValue
+	}
+	return value
+}
