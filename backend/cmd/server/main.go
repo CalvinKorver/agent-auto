@@ -92,8 +92,9 @@ func main() {
 			r.Post("/register", authHandler.Register)
 			r.Post("/login", authHandler.Login)
 
-			// Protected auth route
+			// Protected auth routes
 			r.With(middleware.AuthMiddleware(authService)).Get("/me", authHandler.Me)
+			r.With(middleware.AuthMiddleware(authService)).Post("/logout", authHandler.Logout)
 		})
 
 		// Preferences routes (all protected)

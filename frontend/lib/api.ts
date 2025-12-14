@@ -59,6 +59,10 @@ export const authAPI = {
     const response = await api.get<User>('/auth/me');
     return response.data;
   },
+
+  logout: async (): Promise<void> => {
+    await api.post('/auth/logout');
+  },
 };
 
 // Preferences API

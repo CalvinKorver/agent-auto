@@ -9,7 +9,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -41,8 +41,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     const response = await authAPI.login(email, password);
     localStorage.setItem('token', response.token);
-    setUser(response.user);
-    router.push('/dashboard');
+
+    // Fetch full user data with preferences
+    try {
+      const userData = await authAPI.me();
+      setUser(userData);
+
+      // Check if user has preferences
+      if (userData.preferences) {
+        router.push('/dashboard');
+      } else {
+        router.push('/onboarding');
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      // Fallback: set user from login response and go to dashboard
+      setUser(response.user);
+      router.push('/dashboard');
+    }
   };
 
   const register = async (email: string, password: string) => {
@@ -52,10 +68,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push('/dashboard');
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
-    router.push('/login');
+  const logout = async () => {
+    try {
+      await authAPI.logout();
+    } catch (error) {
+      console.error('Logout API call failed:', error);
+      // Continue with local logout even if API fails
+    } finally {
+      localStorage.removeItem('token');
+      setUser(null);
+      router.push('/login');
+    }
   };
 
   const refreshUser = async () => {
