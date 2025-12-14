@@ -48,9 +48,11 @@ func main() {
 
 	// Initialize services
 	authService := services.NewAuthService(database.DB, cfg.JWTSecret, cfg.JWTExpirationHours)
+	preferencesService := services.NewPreferencesService(database.DB)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService)
+	preferencesHandler := handlers.NewPreferencesHandler(preferencesService)
 
 	// Initialize router
 	r := chi.NewRouter()
@@ -92,6 +94,13 @@ func main() {
 
 			// Protected auth route
 			r.With(middleware.AuthMiddleware(authService)).Get("/me", authHandler.Me)
+		})
+
+		// Preferences routes (all protected)
+		r.Route("/preferences", func(r chi.Router) {
+			r.Use(middleware.AuthMiddleware(authService))
+			r.Get("/", preferencesHandler.GetPreferences)
+			r.Post("/", preferencesHandler.CreatePreferences)
 		})
 	})
 
