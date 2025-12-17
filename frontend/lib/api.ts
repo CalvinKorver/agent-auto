@@ -34,6 +34,48 @@ export interface UserPreferences {
   model: string;
 }
 
+export interface Thread {
+  id: string;
+  sellerName: string;
+  sellerType: 'private' | 'dealership' | 'other';
+  createdAt: string;
+  lastMessageAt?: string;
+  messageCount: number;
+}
+
+export interface Message {
+  id: string;
+  threadId: string;
+  sender: 'user' | 'agent' | 'seller';
+  content: string;
+  timestamp: string;
+}
+
+export interface MessageResponse {
+  messages: Message[];
+  total: number;
+  hasMore: boolean;
+}
+
+export interface CreateThreadRequest {
+  sellerName: string;
+  sellerType: 'private' | 'dealership' | 'other';
+}
+
+export interface CreateMessageRequest {
+  content: string;
+  sender: 'user' | 'seller';
+}
+
+export interface CreateUserMessageResponse {
+  userMessage: Message;
+  agentMessage: Message;
+}
+
+export interface CreateSellerMessageResponse {
+  sellerMessage: Message;
+}
+
 export interface AuthResponse {
   user: User;
   token: string;
@@ -74,6 +116,45 @@ export const preferencesAPI = {
 
   create: async (year: number, make: string, model: string): Promise<UserPreferences> => {
     const response = await api.post<UserPreferences>('/preferences', { year, make, model });
+    return response.data;
+  },
+};
+
+// Thread API
+export const threadAPI = {
+  getAll: async (): Promise<Thread[]> => {
+    const response = await api.get<{ threads: Thread[] }>('/threads');
+    return response.data.threads;
+  },
+
+  getById: async (threadId: string): Promise<Thread> => {
+    const response = await api.get<Thread>(`/threads/${threadId}`);
+    return response.data;
+  },
+
+  create: async (data: CreateThreadRequest): Promise<Thread> => {
+    const response = await api.post<Thread>('/threads', data);
+    return response.data;
+  },
+};
+
+// Message API
+export const messageAPI = {
+  getThreadMessages: async (threadId: string, limit = 50, offset = 0): Promise<MessageResponse> => {
+    const response = await api.get<MessageResponse>(`/threads/${threadId}/messages`, {
+      params: { limit, offset },
+    });
+    return response.data;
+  },
+
+  createMessage: async (
+    threadId: string,
+    data: CreateMessageRequest
+  ): Promise<CreateUserMessageResponse | CreateSellerMessageResponse> => {
+    const response = await api.post<CreateUserMessageResponse | CreateSellerMessageResponse>(
+      `/threads/${threadId}/messages`,
+      data
+    );
     return response.data;
   },
 };

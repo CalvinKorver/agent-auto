@@ -49,10 +49,15 @@ func main() {
 	// Initialize services
 	authService := services.NewAuthService(database.DB, cfg.JWTSecret, cfg.JWTExpirationHours)
 	preferencesService := services.NewPreferencesService(database.DB)
+	claudeService := services.NewClaudeService(cfg.AnthropicAPIKey)
+	threadService := services.NewThreadService(database.DB)
+	messageService := services.NewMessageService(database.DB, claudeService)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService)
 	preferencesHandler := handlers.NewPreferencesHandler(preferencesService)
+	threadHandler := handlers.NewThreadHandler(threadService)
+	messageHandler := handlers.NewMessageHandler(messageService)
 
 	// Initialize router
 	r := chi.NewRouter()
@@ -102,6 +107,18 @@ func main() {
 			r.Use(middleware.AuthMiddleware(authService))
 			r.Get("/", preferencesHandler.GetPreferences)
 			r.Post("/", preferencesHandler.CreatePreferences)
+		})
+
+		// Thread routes (all protected)
+		r.Route("/threads", func(r chi.Router) {
+			r.Use(middleware.AuthMiddleware(authService))
+			r.Get("/", threadHandler.GetThreads)
+			r.Post("/", threadHandler.CreateThread)
+			r.Get("/{id}", threadHandler.GetThread)
+
+			// Message routes nested under threads
+			r.Get("/{id}/messages", messageHandler.GetMessages)
+			r.Post("/{id}/messages", messageHandler.CreateMessage)
 		})
 	})
 
