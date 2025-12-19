@@ -47,17 +47,19 @@ func main() {
 	}
 
 	// Initialize services
-	authService := services.NewAuthService(database.DB, cfg.JWTSecret, cfg.JWTExpirationHours)
+	authService := services.NewAuthService(database.DB, cfg.JWTSecret, cfg.JWTExpirationHours, cfg.MailgunDomain)
 	preferencesService := services.NewPreferencesService(database.DB)
 	claudeService := services.NewClaudeService(cfg.AnthropicAPIKey)
 	threadService := services.NewThreadService(database.DB)
 	messageService := services.NewMessageService(database.DB, claudeService)
+	emailService := services.NewEmailService(database.DB, cfg.MailgunAPIKey, cfg.MailgunDomain)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService)
 	preferencesHandler := handlers.NewPreferencesHandler(preferencesService)
 	threadHandler := handlers.NewThreadHandler(threadService)
 	messageHandler := handlers.NewMessageHandler(messageService)
+	emailHandler := handlers.NewEmailHandler(emailService, cfg.MailgunWebhookSigningKey, database.DB)
 
 	// Initialize router
 	r := chi.NewRouter()
@@ -119,6 +121,19 @@ func main() {
 			// Message routes nested under threads
 			r.Get("/{id}/messages", messageHandler.GetMessages)
 			r.Post("/{id}/messages", messageHandler.CreateMessage)
+		})
+
+		// Inbox message routes (all protected)
+		r.Route("/inbox", func(r chi.Router) {
+			r.Use(middleware.AuthMiddleware(authService))
+			r.Get("/messages", messageHandler.GetInboxMessages)
+			r.Put("/messages/{id}/assign", messageHandler.AssignInboxMessageToThread)
+		})
+
+		// Webhook routes (public - no auth)
+		r.Route("/webhooks", func(r chi.Router) {
+			r.Post("/email/inbound", emailHandler.InboundEmail)
+			r.Post("/email/test", emailHandler.TestInboundEmail) // For testing without Mailgun
 		})
 	})
 

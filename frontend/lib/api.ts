@@ -25,6 +25,7 @@ export interface User {
   id: string;
   email: string;
   createdAt: string;
+  inboxEmail?: string;
   preferences?: UserPreferences;
 }
 
@@ -49,6 +50,16 @@ export interface Message {
   sender: 'user' | 'agent' | 'seller';
   content: string;
   timestamp: string;
+}
+
+export interface InboxMessage {
+  id: string;
+  sender: 'user' | 'agent' | 'seller';
+  senderEmail: string;
+  subject: string;
+  content: string;
+  timestamp: string;
+  externalMessageId?: string;
 }
 
 export interface MessageResponse {
@@ -156,5 +167,16 @@ export const messageAPI = {
       data
     );
     return response.data;
+  },
+
+  getInboxMessages: async (limit = 50, offset = 0): Promise<{ messages: InboxMessage[]; total: number; hasMore: boolean }> => {
+    const response = await api.get<{ messages: InboxMessage[]; total: number; hasMore: boolean }>('/inbox/messages', {
+      params: { limit, offset },
+    });
+    return response.data;
+  },
+
+  assignInboxMessageToThread: async (messageId: string, threadId: string): Promise<void> => {
+    await api.put(`/inbox/messages/${messageId}/assign`, { threadId });
   },
 };

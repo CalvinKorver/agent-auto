@@ -199,3 +199,55 @@ func (s *MessageService) CreateSellerMessage(threadID, userID uuid.UUID, content
 
 	return sellerMessage, nil
 }
+
+// GetInboxMessages retrieves messages with null thread_id (inbox messages)
+func (s *MessageService) GetInboxMessages(userID uuid.UUID, limit, offset int) ([]models.Message, int64, error) {
+	// Get total count of inbox messages
+	var total int64
+	if err := s.db.Model(&models.Message{}).Where("user_id = ? AND thread_id IS NULL", userID).Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count inbox messages: %w", err)
+	}
+
+	// Get inbox messages with pagination, ordered by timestamp descending (newest first)
+	var messages []models.Message
+	query := s.db.Where("user_id = ? AND thread_id IS NULL", userID).Order("timestamp DESC")
+
+	if limit > 0 {
+		query = query.Limit(limit).Offset(offset)
+	}
+
+	if err := query.Find(&messages).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to retrieve inbox messages: %w", err)
+	}
+
+	return messages, total, nil
+}
+
+// AssignInboxMessageToThread assigns an inbox message to a thread
+func (s *MessageService) AssignInboxMessageToThread(messageID, threadID, userID uuid.UUID) error {
+	// Verify the thread exists and belongs to the user
+	var thread models.Thread
+	if err := s.db.Where("id = ? AND user_id = ?", threadID, userID).First(&thread).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return fmt.Errorf("thread not found")
+		}
+		return fmt.Errorf("failed to verify thread: %w", err)
+	}
+
+	// Verify the message exists, belongs to the user, and is an inbox message (thread_id is NULL)
+	var message models.Message
+	if err := s.db.Where("id = ? AND user_id = ? AND thread_id IS NULL", messageID, userID).First(&message).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return fmt.Errorf("inbox message not found")
+		}
+		return fmt.Errorf("failed to verify message: %w", err)
+	}
+
+	// Assign the message to the thread
+	message.ThreadID = &threadID
+	if err := s.db.Save(&message).Error; err != nil {
+		return fmt.Errorf("failed to assign message to thread: %w", err)
+	}
+
+	return nil
+}

@@ -7,15 +7,18 @@ import (
 )
 
 type Config struct {
-	Port                 string
-	Environment          string
-	DatabaseURL          string
-	JWTSecret            string
-	JWTExpirationHours   int
-	AnthropicAPIKey      string
-	AllowedOrigins       []string
-	RateLimitAuth        int
-	RateLimitAPI         int
+	Port                     string
+	Environment              string
+	DatabaseURL              string
+	JWTSecret                string
+	JWTExpirationHours       int
+	AnthropicAPIKey          string
+	AllowedOrigins           []string
+	RateLimitAuth            int
+	RateLimitAPI             int
+	MailgunAPIKey            string
+	MailgunDomain            string
+	MailgunWebhookSigningKey string
 }
 
 func Load() (*Config, error) {
@@ -30,6 +33,9 @@ func Load() (*Config, error) {
 	}
 	rateLimitAuth := getEnvAsInt("RATE_LIMIT_AUTH", 5)
 	rateLimitAPI := getEnvAsInt("RATE_LIMIT_API", 100)
+	mailgunAPIKey := getEnv("MAILGUN_API_KEY", "")
+	mailgunDomain := getEnv("MAILGUN_DOMAIN", "")
+	mailgunWebhookSigningKey := getEnv("MAILGUN_WEBHOOK_SIGNING_KEY", "")
 
 	if databaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL environment variable is required")
@@ -44,15 +50,18 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
-		Port:                 port,
-		Environment:          environment,
-		DatabaseURL:          databaseURL,
-		JWTSecret:            jwtSecret,
-		JWTExpirationHours:   jwtExpirationHours,
-		AnthropicAPIKey:      anthropicAPIKey,
-		AllowedOrigins:       allowedOrigins,
-		RateLimitAuth:        rateLimitAuth,
-		RateLimitAPI:         rateLimitAPI,
+		Port:                     port,
+		Environment:              environment,
+		DatabaseURL:              databaseURL,
+		JWTSecret:                jwtSecret,
+		JWTExpirationHours:       jwtExpirationHours,
+		AnthropicAPIKey:          anthropicAPIKey,
+		AllowedOrigins:           allowedOrigins,
+		RateLimitAuth:            rateLimitAuth,
+		RateLimitAPI:             rateLimitAPI,
+		MailgunAPIKey:            mailgunAPIKey,
+		MailgunDomain:            mailgunDomain,
+		MailgunWebhookSigningKey: mailgunWebhookSigningKey,
 	}, nil
 }
 

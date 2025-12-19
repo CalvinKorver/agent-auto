@@ -24,7 +24,7 @@ type Message struct {
 	SenderEmail       string     `json:"senderEmail,omitempty"`
 	ExternalMessageID string     `gorm:"index" json:"externalMessageId,omitempty"`
 	Subject           string     `json:"subject,omitempty"`
-	Metadata          string     `gorm:"type:jsonb" json:"metadata,omitempty"`
+	Metadata          *string    `gorm:"type:jsonb" json:"metadata,omitempty"`
 	SentViaEmail      bool       `gorm:"default:false" json:"sentViaEmail"`
 
 	User   *User   `gorm:"foreignKey:UserID" json:"user,omitempty"`

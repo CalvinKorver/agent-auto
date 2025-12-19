@@ -17,13 +17,15 @@ type AuthService struct {
 	db                 *gorm.DB
 	jwtSecret          string
 	jwtExpirationHours int
+	mailgunDomain      string
 }
 
-func NewAuthService(db *gorm.DB, jwtSecret string, jwtExpirationHours int) *AuthService {
+func NewAuthService(db *gorm.DB, jwtSecret string, jwtExpirationHours int, mailgunDomain string) *AuthService {
 	return &AuthService{
 		db:                 db,
 		jwtSecret:          jwtSecret,
 		jwtExpirationHours: jwtExpirationHours,
+		mailgunDomain:      mailgunDomain,
 	}
 }
 
@@ -61,8 +63,8 @@ func (s *AuthService) RegisterUser(email, password string) (*models.User, error)
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
-	// Generate inbox email using user ID
-	user.InboxEmail = fmt.Sprintf("%s@carbuyer.app", user.ID.String())
+	// Generate inbox email using user ID and Mailgun domain
+	user.InboxEmail = fmt.Sprintf("%s@%s", user.ID.String(), s.mailgunDomain)
 
 	// Update user with inbox email
 	if err := s.db.Save(user).Error; err != nil {

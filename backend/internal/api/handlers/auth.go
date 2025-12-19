@@ -38,10 +38,11 @@ type AuthResponse struct {
 
 // UserResponse represents a user in API responses
 type UserResponse struct {
-	ID        string                   `json:"id"`
-	Email     string                   `json:"email"`
-	CreatedAt string                   `json:"createdAt"`
-	Preferences *PreferencesResponse `json:"preferences,omitempty"`
+	ID          string                 `json:"id"`
+	Email       string                 `json:"email"`
+	InboxEmail  string                 `json:"inboxEmail"`
+	CreatedAt   string                 `json:"createdAt"`
+	Preferences *PreferencesResponse   `json:"preferences,omitempty"`
 }
 
 // PreferencesResponse represents user preferences in API responses
@@ -93,9 +94,10 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(AuthResponse{
 		User: UserResponse{
-			ID:        user.ID.String(),
-			Email:     user.Email,
-			CreatedAt: user.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			ID:         user.ID.String(),
+			Email:      user.Email,
+			InboxEmail: user.InboxEmail,
+			CreatedAt:  user.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		},
 		Token: token,
 	})
@@ -134,9 +136,10 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(AuthResponse{
 		User: UserResponse{
-			ID:        user.ID.String(),
-			Email:     user.Email,
-			CreatedAt: user.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			ID:         user.ID.String(),
+			Email:      user.Email,
+			InboxEmail: user.InboxEmail,
+			CreatedAt:  user.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		},
 		Token: token,
 	})
@@ -164,8 +167,9 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 
 	// Build response
 	userResp := UserResponse{
-		ID:        user.ID.String(),
-		Email:     user.Email,
+		ID:         user.ID.String(),
+		Email:      user.Email,
+		InboxEmail: user.InboxEmail,
 		CreatedAt: user.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 

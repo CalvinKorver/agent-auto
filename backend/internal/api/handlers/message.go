@@ -202,3 +202,131 @@ func (h *MessageHandler) CreateMessage(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
 }
+
+// GetInboxMessages retrieves inbox messages (messages with no thread)
+func (h *MessageHandler) GetInboxMessages(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserIDFromContext(r.Context())
+	if !ok {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "unauthorized"})
+		return
+	}
+
+	// Get pagination parameters
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+
+	limit := 50
+	offset := 0
+
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	if offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
+	messages, total, err := h.messageService.GetInboxMessages(userID, limit, offset)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	// InboxMessageResponse includes additional fields for inbox messages
+	type InboxMessageResponse struct {
+		ID                string `json:"id"`
+		Sender            string `json:"sender"`
+		SenderEmail       string `json:"senderEmail"`
+		Subject           string `json:"subject"`
+		Content           string `json:"content"`
+		Timestamp         string `json:"timestamp"`
+		ExternalMessageID string `json:"externalMessageId,omitempty"`
+	}
+
+	var response struct {
+		Messages []InboxMessageResponse `json:"messages"`
+		Total    int64                  `json:"total"`
+		HasMore  bool                   `json:"hasMore"`
+	}
+
+	response.Messages = make([]InboxMessageResponse, len(messages))
+	for i, msg := range messages {
+		response.Messages[i] = InboxMessageResponse{
+			ID:                msg.ID.String(),
+			Sender:            string(msg.Sender),
+			SenderEmail:       msg.SenderEmail,
+			Subject:           msg.Subject,
+			Content:           msg.Content,
+			Timestamp:         msg.Timestamp.Format("2006-01-02T15:04:05Z"),
+			ExternalMessageID: msg.ExternalMessageID,
+		}
+	}
+
+	response.Total = total
+	response.HasMore = int64(offset+len(messages)) < total
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+// AssignInboxMessageToThread assigns an inbox message to a thread
+func (h *MessageHandler) AssignInboxMessageToThread(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserIDFromContext(r.Context())
+	if !ok {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "unauthorized"})
+		return
+	}
+
+	messageIDStr := chi.URLParam(r, "id")
+	messageID, err := uuid.Parse(messageIDStr)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid message ID"})
+		return
+	}
+
+	var req struct {
+		ThreadID string `json:"threadId"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	threadID, err := uuid.Parse(req.ThreadID)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid thread ID"})
+		return
+	}
+
+	if err := h.messageService.AssignInboxMessageToThread(messageID, threadID, userID); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		if err.Error() == "thread not found" || err.Error() == "inbox message not found" {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "assigned successfully"})
+}

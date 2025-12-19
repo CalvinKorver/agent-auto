@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import ThreadPane from '@/components/dashboard/ThreadPane';
 import ChatPane from '@/components/dashboard/ChatPane';
-import { Thread, threadAPI } from '@/lib/api';
+import { Thread, threadAPI, InboxMessage } from '@/lib/api';
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [selectedInboxMessage, setSelectedInboxMessage] = useState<InboxMessage | null>(null);
   const [loadingThreads, setLoadingThreads] = useState(false);
 
   useEffect(() => {
@@ -42,13 +43,25 @@ export default function DashboardPage() {
     }
   };
 
+  const handleInboxMessageAssigned = () => {
+    setSelectedInboxMessage(null);
+    setSelectedThreadId(null);
+  };
+
   const handleThreadCreated = (newThread: Thread) => {
     setThreads([...threads, newThread]);
     setSelectedThreadId(newThread.id);
+    setSelectedInboxMessage(null);
   };
 
   const handleThreadSelect = (threadId: string) => {
     setSelectedThreadId(threadId);
+    setSelectedInboxMessage(null);
+  };
+
+  const handleInboxMessageSelect = (message: InboxMessage) => {
+    setSelectedInboxMessage(message);
+    setSelectedThreadId(null);
   };
 
   if (loading || loadingThreads) {
@@ -63,18 +76,22 @@ export default function DashboardPage() {
     return null;
   }
 
-  const targetVehicle = `${user.preferences.year} ${user.preferences.make} ${user.preferences.model}`;
-
   return (
     <div className="flex h-screen overflow-hidden">
       <ThreadPane
-        targetVehicle={targetVehicle}
         threads={threads}
         selectedThreadId={selectedThreadId}
+        selectedInboxMessageId={selectedInboxMessage?.id || null}
         onThreadSelect={handleThreadSelect}
         onThreadCreated={handleThreadCreated}
+        onInboxMessageSelect={handleInboxMessageSelect}
       />
-      <ChatPane selectedThreadId={selectedThreadId} />
+      <ChatPane
+        selectedThreadId={selectedThreadId}
+        selectedInboxMessage={selectedInboxMessage}
+        threads={threads}
+        onInboxMessageAssigned={handleInboxMessageAssigned}
+      />
     </div>
   );
 }
