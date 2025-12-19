@@ -23,7 +23,7 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
         <div className="flex items-center">
           <span className="text-2xl mr-2">🚗</span>
-          <h1 className="text-xl font-bold text-gray-900">Car Buyer Agent</h1>
+          <h1 className="text-xl font-bold text-gray-900">Agent Auto</h1>
         </div>
         <div className="flex items-center gap-4">
           {user && <span className="text-sm text-gray-600">{user.email}</span>}

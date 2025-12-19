@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import ThreadPane from '@/components/dashboard/ThreadPane';
+import { AppSidebar } from '@/components/dashboard/AppSidebar';
 import ChatPane from '@/components/dashboard/ChatPane';
 import { Thread, threadAPI, InboxMessage } from '@/lib/api';
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
@@ -77,21 +78,28 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <ThreadPane
-        threads={threads}
-        selectedThreadId={selectedThreadId}
-        selectedInboxMessageId={selectedInboxMessage?.id || null}
-        onThreadSelect={handleThreadSelect}
-        onThreadCreated={handleThreadCreated}
-        onInboxMessageSelect={handleInboxMessageSelect}
-      />
-      <ChatPane
-        selectedThreadId={selectedThreadId}
-        selectedInboxMessage={selectedInboxMessage}
-        threads={threads}
-        onInboxMessageAssigned={handleInboxMessageAssigned}
-      />
-    </div>
+    <SidebarProvider>
+      <div className="flex h-screen w-full overflow-hidden">
+        <AppSidebar
+          threads={threads}
+          selectedThreadId={selectedThreadId}
+          selectedInboxMessageId={selectedInboxMessage?.id || null}
+          onThreadSelect={handleThreadSelect}
+          onThreadCreated={handleThreadCreated}
+          onInboxMessageSelect={handleInboxMessageSelect}
+        />
+        <SidebarInset className="flex-1 flex flex-col overflow-hidden">
+          <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
+            <SidebarTrigger />
+          </header>
+          <ChatPane
+            selectedThreadId={selectedThreadId}
+            selectedInboxMessage={selectedInboxMessage}
+            threads={threads}
+            onInboxMessageAssigned={handleInboxMessageAssigned}
+          />
+        </SidebarInset>
+      </div>
+    </SidebarProvider>
   );
 }

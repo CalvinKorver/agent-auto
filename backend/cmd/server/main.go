@@ -18,7 +18,7 @@ import (
 )
 
 func main() {
-	log.Println("Starting Car Buyer Agent API Server...")
+	log.Println("Starting Agent Auto API Server...")
 
 	// Load .env file
 	if err := godotenv.Load(); err != nil {
@@ -91,7 +91,7 @@ func main() {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"message":"Car Buyer Agent API","version":"1.0.0"}`))
+			w.Write([]byte(`{"message":"Agent Auto API","version":"1.0.0"}`))
 		})
 
 		// Auth routes

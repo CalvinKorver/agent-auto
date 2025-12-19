@@ -59,7 +59,7 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
   // Show inbox message if selected
   if (selectedInboxMessage) {
     return (
-      <div className="flex-1 flex flex-col bg-white">
+      <div className="flex-1 flex flex-col bg-background">
         {/* Email Header */}
         <div className="border-b border-gray-200 px-6 py-4 bg-white">
           <h2 className="text-xl font-semibold text-gray-800 mb-2">
@@ -143,7 +143,7 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
 
   if (!selectedThreadId) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-50">
+      <div className="flex-1 flex items-center justify-center bg-background">
         <div className="text-center max-w-md">
           <div className="mb-6 flex justify-center">
             <svg
@@ -176,7 +176,7 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
   const selectedThread = threads.find(t => t.id === selectedThreadId);
 
   return (
-    <div className="flex-1 flex flex-col bg-white">
+    <div className="flex-1 flex flex-col bg-background">
       {/* Thread Header */}
       <div className="border-b border-gray-200 px-6 py-4 bg-white">
         <div className="flex items-center justify-between">
@@ -262,7 +262,7 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
             <textarea
               placeholder="Type message... AI will assist"
               rows={1}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p`x-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 cursor-pointer">

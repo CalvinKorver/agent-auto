@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Car Buyer Agent",
+  title: "Agent Auto",
   description: "AI-powered car buying assistant",
 };
 

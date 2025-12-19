@@ -44,7 +44,7 @@ export default function LoginPage() {
       <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
         <div className="text-center mb-8">
           <div className="text-4xl mb-4">🚗</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Car Buyer Agent</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Agent Auto</h1>
           <p className="text-sm text-gray-600">Sign in to your account</p>
         </div>
 
