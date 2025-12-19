@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function Header() {
   const { user, logout } = useAuth();
@@ -19,14 +20,15 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-white border-b border-gray-200">
+    <header className="bg-card border-b border-border">
       <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
         <div className="flex items-center">
           <span className="text-2xl mr-2">🚗</span>
-          <h1 className="text-xl font-bold text-gray-900">Agent Auto</h1>
+          <h1 className="text-xl font-bold text-card-foreground">Agent Auto</h1>
         </div>
         <div className="flex items-center gap-4">
-          {user && <span className="text-sm text-gray-600">{user.email}</span>}
+          {user && <span className="text-sm text-muted-foreground">{user.email}</span>}
+          <ThemeToggle />
           <button
             onClick={handleLogout}
             disabled={loggingOut}

@@ -15,6 +15,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
+  SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import {
@@ -133,9 +134,12 @@ export function AppSidebar({
     <>
       <Sidebar>
         <SidebarHeader className="border-b px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Car className="h-6 w-6" />
-            <h1 className="text-lg font-semibold">Agent Auto</h1>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Car className="h-6 w-6" />
+              <h1 className="text-lg font-semibold">Agent Auto</h1>
+            </div>
+            <SidebarTrigger />
           </div>
         </SidebarHeader>
 

@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AppSidebar } from '@/components/dashboard/AppSidebar';
 import ChatPane from '@/components/dashboard/ChatPane';
 import { Thread, threadAPI, InboxMessage } from '@/lib/api';
-import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
@@ -89,9 +89,6 @@ export default function DashboardPage() {
           onInboxMessageSelect={handleInboxMessageSelect}
         />
         <SidebarInset className="flex-1 flex flex-col overflow-hidden">
-          <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
-            <SidebarTrigger />
-          </header>
           <ChatPane
             selectedThreadId={selectedThreadId}
             selectedInboxMessage={selectedInboxMessage}
