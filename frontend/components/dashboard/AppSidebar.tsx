@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Mail, MessageSquare, Plus, Copy, Check } from 'lucide-react';
+import { IconMail, IconMessageCircle, IconPlus, IconCopy, IconCheck, IconCar } from '@tabler/icons-react';
 import { Thread, InboxMessage, messageAPI, threadAPI } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { SidebarInboxItem } from './SidebarInboxItem';
@@ -15,6 +15,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
+  SidebarHeader,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,8 +34,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import * as React from 'react';
 
-interface AppSidebarProps {
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   threads: Thread[];
   selectedThreadId: string | null;
   selectedInboxMessageId: string | null;
@@ -50,6 +52,7 @@ export function AppSidebar({
   onThreadSelect,
   onThreadCreated,
   onInboxMessageSelect,
+  ...props
 }: AppSidebarProps) {
   const { user } = useAuth();
   const [inboxMessages, setInboxMessages] = useState<InboxMessage[]>([]);
@@ -131,25 +134,30 @@ export function AppSidebar({
 
   return (
     <>
-      <Sidebar>
+      <Sidebar {...props}>
+
+        <SidebarHeader className="p-4">
+        <SidebarMenu>
+                      <SidebarMenuButton
+              asChild
+              className="data-[slot=sidebar-menu-button]:!p-1.5"
+            >
+              <a href="#">
+                <IconCar className="h-12 w-12" />
+                <span className="text-base font-semibold">Agent Auto</span>
+              </a>
+            </SidebarMenuButton>
+
+        </SidebarMenu>
+
+        </SidebarHeader>
         <SidebarContent>
-          {/* User Preferences Section */}
-          {user?.preferences && (
-            <div className="px-4 py-3 border-b border-border bg-muted/50">
-              <div className="text-xs font-medium text-muted-foreground mb-2">
-                Looking For
-              </div>
-              <div className="text-sm font-semibold text-foreground">
-                {user.preferences.year} {user.preferences.make} {user.preferences.model}
-              </div>
-            </div>
-          )}
 
           {/* Inbox Section */}
           <SidebarGroup>
             <SidebarGroupLabel className="flex items-center justify-between">
               <span className="flex items-center gap-2">
-                <Mail className="h-4 w-4" />
+                <IconMail className="h-4 w-4" />
                 Inbox
               </span>
             </SidebarGroupLabel>
@@ -162,7 +170,7 @@ export function AppSidebar({
                     size="sm"
                     className="w-full"
                   >
-                    <Plus className="h-4 w-4 mr-2" />
+                    <IconPlus className="h-4 w-4 mr-2" />
                     Add Emails
                   </Button>
                 </div>
@@ -192,7 +200,7 @@ export function AppSidebar({
           {/* Threads Section */}
           <SidebarGroup>
             <SidebarGroupLabel className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
+              <IconMessageCircle className="h-4 w-4" />
               Threads
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -227,7 +235,7 @@ export function AppSidebar({
             onClick={() => setShowNewThreadDialog(true)}
             className="w-full"
           >
-            <Plus className="h-4 w-4 mr-2" />
+            <IconPlus className="h-4 w-4 mr-2" />
             New Seller Thread
           </Button>
         </SidebarFooter>
@@ -251,12 +259,12 @@ export function AppSidebar({
             >
               {copied ? (
                 <>
-                  <Check className="h-4 w-4 mr-2" />
+                  <IconCheck className="h-4 w-4 mr-2" />
                   Copied
                 </>
               ) : (
                 <>
-                  <Copy className="h-4 w-4 mr-2" />
+                  <IconCopy className="h-4 w-4 mr-2" />
                   Copy
                 </>
               )}

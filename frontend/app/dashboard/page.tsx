@@ -97,32 +97,39 @@ export default function DashboardPage() {
   }
 
   return (
-    <SidebarProvider defaultOpen style={{ '--sidebar-width': '22rem' } as React.CSSProperties}>
-      <div className="flex flex-col h-screen w-full overflow-hidden">
-        <TopNavBar onViewOffers={handleViewOffers} />
-        <div className="flex flex-1 overflow-hidden">
-          <AppSidebar
-            threads={threads}
-            selectedThreadId={selectedThreadId}
-            selectedInboxMessageId={selectedInboxMessage?.id || null}
-            onThreadSelect={handleThreadSelect}
-            onThreadCreated={handleThreadCreated}
-            onInboxMessageSelect={handleInboxMessageSelect}
-          />
-          <SidebarInset className="flex-1 flex flex-col overflow-hidden">
-            {viewMode === 'offers' ? (
-              <OffersPane onNavigateToThread={handleNavigateToThread} />
-            ) : (
-              <ChatPane
-                selectedThreadId={selectedThreadId}
-                selectedInboxMessage={selectedInboxMessage}
-                threads={threads}
-                onInboxMessageAssigned={handleInboxMessageAssigned}
-              />
-            )}
-          </SidebarInset>
+    <SidebarProvider
+      defaultOpen
+      style={
+        {
+          '--sidebar-width': '22rem',
+          '--header-height': 'calc(var(--spacing) * 12)',
+        } as React.CSSProperties
+      }
+    >
+      <AppSidebar
+        variant="inset"
+        threads={threads}
+        selectedThreadId={selectedThreadId}
+        selectedInboxMessageId={selectedInboxMessage?.id || null}
+        onThreadSelect={handleThreadSelect}
+        onThreadCreated={handleThreadCreated}
+        onInboxMessageSelect={handleInboxMessageSelect}
+      />
+      <SidebarInset>
+        {/* <TopNavBar onViewOffers={handleViewOffers} /> */}
+        <div className="flex flex-1 flex-col">
+          {viewMode === 'offers' ? (
+            <OffersPane onNavigateToThread={handleNavigateToThread} />
+          ) : (
+            <ChatPane
+              selectedThreadId={selectedThreadId}
+              selectedInboxMessage={selectedInboxMessage}
+              threads={threads}
+              onInboxMessageAssigned={handleInboxMessageAssigned}
+            />
+          )}
         </div>
-      </div>
+      </SidebarInset>
     </SidebarProvider>
   );
 }

@@ -67,7 +67,7 @@ Guidelines:
 - Help the user craft effective negotiation messages
 - When you have competing offers, use them as leverage without naming specific sellers
 
-When the user provides a message, enhance it to be more effective for negotiation while keeping their intent.`, year, make, model, sellerName, competitiveContext)
+You should respond as best as you can to whatever the user asks. Sometimes they will just chat with you to understand how to best respond. Other times they will ask you to draft messages. You are here to serve the user. `, year, make, model, sellerName, competitiveContext)
 
 	// Build conversation history
 	messages := []anthropic.MessageParam{}
@@ -89,7 +89,7 @@ When the user provides a message, enhance it to be more effective for negotiatio
 	}
 
 	// Add current user message
-	userPrompt := fmt.Sprintf("The user wants to send this message: \"%s\"\n\nEnhance this message to be more effective for negotiating with %s. Return ONLY the enhanced message, nothing else.", userMessage, sellerName)
+	userPrompt := fmt.Sprintf("Here is the users message: \"%s\" . In this thread they are negotiating with %s. Assist the user with their request", userMessage, sellerName)
 	messages = append(messages, anthropic.NewUserMessage(anthropic.NewTextBlock(userPrompt)))
 
 	// Log the full Claude request
