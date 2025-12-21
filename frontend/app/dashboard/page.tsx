@@ -37,6 +37,15 @@ export default function DashboardPage() {
     }
   }, [user]);
 
+  useEffect(() => {
+    const handleRefresh = () => {
+      loadThreads();
+      setSelectedThreadId(null);
+    };
+    window.addEventListener('refreshThreads', handleRefresh);
+    return () => window.removeEventListener('refreshThreads', handleRefresh);
+  }, []);
+
   const loadThreads = async () => {
     setLoadingThreads(true);
     try {

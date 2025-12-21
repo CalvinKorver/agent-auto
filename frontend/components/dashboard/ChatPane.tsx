@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { InboxMessage, Thread, messageAPI, Message } from '@/lib/api';
+import { InboxMessage, Thread, messageAPI, Message, threadAPI } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -25,6 +25,9 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [messageInput, setMessageInput] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [showGearMenu, setShowGearMenu] = useState(false);
+  const [showArchiveThreadDialog, setShowArchiveThreadDialog] = useState(false);
+  const [archivingThread, setArchivingThread] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -91,6 +94,27 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
     }
   };
 
+  const handleArchiveThread = async () => {
+    if (!selectedThreadId) return;
+
+    setArchivingThread(true);
+    try {
+      await threadAPI.archive(selectedThreadId);
+
+      // Close dialogs
+      setShowArchiveThreadDialog(false);
+      setShowGearMenu(false);
+
+      // Trigger thread refresh
+      window.dispatchEvent(new Event('refreshThreads'));
+    } catch (error) {
+      console.error('Failed to archive thread:', error);
+      alert('Failed to archive thread');
+    } finally {
+      setArchivingThread(false);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!selectedThreadId || !messageInput.trim() || sendingMessage) {
       return;
@@ -134,6 +158,14 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    const handleClickOutside = () => setShowGearMenu(false);
+    if (showGearMenu) {
+      window.addEventListener('click', handleClickOutside);
+      return () => window.removeEventListener('click', handleClickOutside);
+    }
+  }, [showGearMenu]);
 
   // Show inbox message if selected
   if (selectedInboxMessage) {
@@ -317,12 +349,35 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
                 </div>
               )}
             </div>
-            <button className="text-muted-foreground hover:text-foreground">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </button>
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowGearMenu(!showGearMenu);
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+
+              {showGearMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-popover rounded-md shadow-lg border border-border z-10">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowGearMenu(false);
+                      setShowArchiveThreadDialog(true);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-md"
+                  >
+                    Archive Thread
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -415,6 +470,16 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
           </div>
         </div>
       </div>
+
+      {/* Archive Thread Confirmation Dialog */}
+      <ArchiveConfirmDialog
+        open={showArchiveThreadDialog}
+        onOpenChange={setShowArchiveThreadDialog}
+        onConfirm={handleArchiveThread}
+        archiving={archivingThread}
+        title="Archive this thread?"
+        description="This will remove the thread from your list. All messages and tracked offers will be preserved but the thread won't be visible."
+      />
     </>
   );
 }

@@ -157,6 +157,10 @@ export const threadAPI = {
     const response = await api.post<Thread>('/threads', data);
     return response.data;
   },
+
+  archive: async (threadId: string): Promise<void> => {
+    await api.delete(`/threads/${threadId}`);
+  },
 };
 
 // Message API

@@ -247,7 +247,7 @@ export function AppSidebar({
           <DialogHeader>
             <DialogTitle>Forward Emails Here</DialogTitle>
             <DialogDescription>
-              Forward emails from sellers to this address and they'll appear in your inbox:
+              Forward or BCC emails from sellers to this address and they'll appear in your inbox:
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
@@ -279,7 +279,7 @@ export function AppSidebar({
           <DialogHeader>
             <DialogTitle>Create New Seller Thread</DialogTitle>
             <DialogDescription>
-              Start a new conversation with a seller
+              Start a thread to organize and track your communication with this seller.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateThread} className="space-y-4">

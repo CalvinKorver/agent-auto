@@ -262,7 +262,7 @@ export default function ThreadPane({
           <div className="bg-slate-800 rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-xl font-bold text-white mb-4">Forward Emails Here</h2>
             <p className="text-sm text-slate-400 mb-4">
-              Forward emails from sellers to this address and they&apos;ll appear in your inbox:
+              Forward or BCC emails from sellers to this address and they&apos;ll appear in your inbox:
             </p>
             <div className="bg-slate-700 rounded-md p-3 mb-4">
               <div className="flex items-center justify-between">

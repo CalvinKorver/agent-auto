@@ -133,6 +133,7 @@ func main() {
 			r.Get("/", threadHandler.GetThreads)
 			r.Post("/", threadHandler.CreateThread)
 			r.Get("/{id}", threadHandler.GetThread)
+			r.Delete("/{id}", threadHandler.ArchiveThread)
 
 			// Message routes nested under threads
 			r.Get("/{id}/messages", messageHandler.GetMessages)
