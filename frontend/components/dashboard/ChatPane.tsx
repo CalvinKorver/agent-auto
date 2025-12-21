@@ -6,8 +6,25 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { IconTrash } from '@tabler/icons-react';
 import ArchiveConfirmDialog from './ArchiveConfirmDialog';
 import TrackOfferButton from './TrackOfferButton';
+import TypingIndicator from './TypingIndicator';
+import { cn } from '@/lib/utils';
+
+type MessageStatus = 'sending' | 'sent' | 'error';
+
+interface DisplayMessage extends Message {
+  status?: MessageStatus;
+  tempId?: string;
+  errorMessage?: string;
+}
 
 interface ChatPaneProps {
   selectedThreadId: string | null;
@@ -21,11 +38,11 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [assigningToThread, setAssigningToThread] = useState(false);
   const [archiving, setArchiving] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [messageInput, setMessageInput] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
-  const [showGearMenu, setShowGearMenu] = useState(false);
+  const [showTypingIndicator, setShowTypingIndicator] = useState(false);
   const [showArchiveThreadDialog, setShowArchiveThreadDialog] = useState(false);
   const [archivingThread, setArchivingThread] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -101,9 +118,8 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
     try {
       await threadAPI.archive(selectedThreadId);
 
-      // Close dialogs
+      // Close dialog
       setShowArchiveThreadDialog(false);
-      setShowGearMenu(false);
 
       // Trigger thread refresh
       window.dispatchEvent(new Event('refreshThreads'));
@@ -121,6 +137,24 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
     }
 
     const content = messageInput.trim();
+    const tempId = `temp-${Date.now()}-${Math.random()}`;
+    const threadIdAtSendTime = selectedThreadId;
+
+    // Create optimistic message
+    const optimisticMessage: DisplayMessage = {
+      id: tempId,
+      tempId: tempId,
+      threadId: selectedThreadId,
+      sender: 'user',
+      content: content,
+      timestamp: new Date().toISOString(),
+      status: 'sent'
+    };
+
+    // Add to state immediately
+    setMessages(prev => [...prev, optimisticMessage]);
+    setMessageInput('');
+    setShowTypingIndicator(true);
     setSendingMessage(true);
 
     try {
@@ -129,20 +163,88 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
         sender: 'user'
       });
 
-      // Add both user and agent messages to local state
-      if ('userMessage' in response) {
-        setMessages(prev => [
-          ...prev,
-          response.userMessage,
-          ...(response.agentMessage ? [response.agentMessage] : [])
-        ]);
+      // Guard: only update if still on same thread
+      if (selectedThreadId !== threadIdAtSendTime) {
+        return;
       }
 
-      // Clear input
-      setMessageInput('');
+      // Reconcile: replace optimistic message with server messages
+      if ('userMessage' in response) {
+        setMessages(prev => {
+          const withoutOptimistic = prev.filter(m => m.tempId !== tempId);
+          return [
+            ...withoutOptimistic,
+            { ...response.userMessage, status: 'sent' as const },
+            ...(response.agentMessage ? [{ ...response.agentMessage, status: 'sent' as const }] : [])
+          ];
+        });
+      }
+
+      setShowTypingIndicator(false);
+
     } catch (error) {
       console.error('Failed to send message:', error);
-      alert('Failed to send message. Please try again.');
+
+      // Mark message as failed (keep visible with error indicator)
+      setMessages(prev =>
+        prev.map(m =>
+          m.tempId === tempId
+            ? { ...m, status: 'error' as const, errorMessage: 'Failed to send' }
+            : m
+        )
+      );
+
+      setShowTypingIndicator(false);
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  const handleRetry = async (failedMessage: DisplayMessage) => {
+    if (!failedMessage.tempId || !selectedThreadId) return;
+
+    // Update to sent state (remove error)
+    setMessages(prev =>
+      prev.map(m =>
+        m.tempId === failedMessage.tempId
+          ? { ...m, status: 'sent' as const, errorMessage: undefined }
+          : m
+      )
+    );
+
+    setShowTypingIndicator(true);
+    setSendingMessage(true);
+
+    try {
+      const response = await messageAPI.createMessage(selectedThreadId, {
+        content: failedMessage.content,
+        sender: 'user'
+      });
+
+      if ('userMessage' in response) {
+        setMessages(prev => {
+          const withoutFailed = prev.filter(m => m.tempId !== failedMessage.tempId);
+          return [
+            ...withoutFailed,
+            { ...response.userMessage, status: 'sent' as const },
+            ...(response.agentMessage ? [{ ...response.agentMessage, status: 'sent' as const }] : [])
+          ];
+        });
+      }
+
+      setShowTypingIndicator(false);
+    } catch (error) {
+      console.error('Retry failed:', error);
+
+      setMessages(prev =>
+        prev.map(m =>
+          m.tempId === failedMessage.tempId
+            ? { ...m, status: 'error' as const, errorMessage: 'Failed to send' }
+            : m
+        )
+      );
+
+      setShowTypingIndicator(false);
     } finally {
       setSendingMessage(false);
     }
@@ -157,15 +259,7 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  useEffect(() => {
-    const handleClickOutside = () => setShowGearMenu(false);
-    if (showGearMenu) {
-      window.addEventListener('click', handleClickOutside);
-      return () => window.removeEventListener('click', handleClickOutside);
-    }
-  }, [showGearMenu]);
+  }, [messages, showTypingIndicator]);
 
   // Show inbox message if selected
   if (selectedInboxMessage) {
@@ -349,35 +443,22 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
                 </div>
               )}
             </div>
-            <div className="relative">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowGearMenu(!showGearMenu);
-                }}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </button>
-
-              {showGearMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-popover rounded-md shadow-lg border border-border z-10">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowGearMenu(false);
-                      setShowArchiveThreadDialog(true);
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-md"
-                  >
-                    Archive Thread
-                  </button>
-                </div>
-              )}
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="text-muted-foreground hover:text-foreground">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setShowArchiveThreadDialog(true)}>
+                  <IconTrash size={16} />
+                  Archive Thread
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
@@ -399,9 +480,13 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
                   const isUser = message.sender === 'user';
                   const isAgent = message.sender === 'agent';
                   const isSeller = message.sender === 'seller';
+                  const hasError = message.status === 'error';
 
                   return (
-                    <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                      key={message.tempId || message.id}
+                      className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+                    >
                       <div className={`max-w-[70%] ${isUser ? 'order-2' : 'order-1'}`}>
                         {/* Sender label */}
                         <div className={`text-xs text-muted-foreground mb-1 ${isUser ? 'text-right' : 'text-left'}`}>
@@ -412,25 +497,41 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
 
                         {/* Message bubble */}
                         <div
-                          className={`rounded-lg px-4 py-3 ${
+                          className={cn(
+                            'rounded-lg px-4 py-3',
                             isUser
                               ? 'bg-blue-600 text-white'
                               : isAgent
                               ? 'bg-purple-100 dark:bg-purple-950 text-foreground border border-purple-200 dark:border-purple-800'
-                              : 'bg-card text-card-foreground border border-border'
-                          }`}
+                              : 'bg-card text-card-foreground border border-border',
+                            hasError && 'border-2 border-red-500'
+                          )}
                         >
                           <div className="whitespace-pre-wrap break-words">
                             {message.content}
                           </div>
+
+                          {/* Timestamp or status */}
                           <div
-                            className={`text-xs mt-2 ${
+                            className={cn(
+                              'text-xs mt-2',
                               isUser ? 'text-blue-100' : 'text-muted-foreground'
-                            }`}
+                            )}
                           >
-                            {new Date(message.timestamp).toLocaleString()}
+                            {hasError ? (
+                              <span className="text-red-500 flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                </svg>
+                                Failed to send
+                              </span>
+                            ) : (
+                              new Date(message.timestamp).toLocaleString()
+                            )}
                           </div>
-                          {isSeller && selectedThreadId && (
+
+                          {/* Seller track offer button */}
+                          {isSeller && selectedThreadId && !hasError && (
                             <div className="mt-2">
                               <TrackOfferButton
                                 threadId={selectedThreadId}
@@ -439,11 +540,26 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
                               />
                             </div>
                           )}
+
+                          {/* Error retry button */}
+                          {hasError && (
+                            <button
+                              type="button"
+                              onClick={() => handleRetry(message)}
+                              className="mt-2 text-xs underline hover:no-underline"
+                            >
+                              Tap to retry
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
                   );
                 })}
+
+                {/* Typing Indicator */}
+                {showTypingIndicator && <TypingIndicator />}
+
                 <div ref={messagesEndRef} />
               </div>
             )}
@@ -456,7 +572,7 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Type a message... (Try asking about the seller's offer)"
+                placeholder="Type a message... (Ctrl/Cmd+Enter to send)"
                 disabled={sendingMessage}
               />
               <Button

@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { IconMail, IconMessageCircle, IconPlus, IconCopy, IconCheck, IconCar } from '@tabler/icons-react';
+import { IconMail, IconMessageCircle, IconPlus, IconCopy, IconCheck } from '@tabler/icons-react';
 import { Thread, InboxMessage, messageAPI, threadAPI } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { SidebarInboxItem } from './SidebarInboxItem';
+import { NavUser } from './NavUser';
 import {
   Sidebar,
   SidebarContent,
@@ -136,20 +137,11 @@ export function AppSidebar({
     <>
       <Sidebar {...props}>
 
-        <SidebarHeader className="p-4">
-        <SidebarMenu>
-                      <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
-            >
-              <a href="#">
-                <IconCar className="h-12 w-12" />
-                <span className="text-base font-semibold">Agent Auto</span>
-              </a>
-            </SidebarMenuButton>
-
-        </SidebarMenu>
-
+        <SidebarHeader className="border-sidebar-border h-16 border-b">
+          <NavUser user={{
+            name: user?.email?.split('@')[0] || 'User',
+            email: user?.email || ''
+          }} />
         </SidebarHeader>
         <SidebarContent>
 
