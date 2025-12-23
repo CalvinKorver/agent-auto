@@ -39,7 +39,7 @@ export default function TrackOfferButton({ threadId, messageId, messageContent }
         onClick={() => setShowDialog(true)}
         variant="default"
         size="sm"
-        className="mt-1 bg-green-600 hover:bg-green-700 text-white"
+        className="mt-1"
       >
         Track Offer
       </Button>

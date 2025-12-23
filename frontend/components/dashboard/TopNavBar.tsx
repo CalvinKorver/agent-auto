@@ -38,7 +38,7 @@ export default function TopNavBar({ onViewOffers }: TopNavBarProps) {
       {/* Logo and App Name */}
       <div className="flex items-center gap-3">
         <svg
-          className="w-8 h-8 text-blue-600"
+          className="w-8 h-8 text-primary"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"

@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -87,18 +88,14 @@ export default function RegisterPage() {
             )}
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-          >
+          <Button type="submit" disabled={loading} className="w-full">
             {loading ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT'}
-          </button>
+          </Button>
         </form>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Already have an account?{' '}
-          <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+          <Link href="/login" className="text-primary hover:text-primary/80 font-medium">
             Sign in
           </Link>
         </p>

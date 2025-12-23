@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { InboxMessage, Thread, messageAPI, Message, threadAPI } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -322,20 +323,16 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
             {/* Actions */}
             <div className="border-t border-border px-6 py-4 bg-card">
               <div className="flex gap-3">
-                <button
-                  onClick={() => setShowAssignModal(true)}
-                  disabled={archiving}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
+                <Button onClick={() => setShowAssignModal(true)} disabled={archiving}>
                   Assign to Thread
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => setShowArchiveDialog(true)}
                   disabled={archiving}
-                  className="bg-secondary hover:bg-secondary/80 text-secondary-foreground px-6 py-2 rounded-lg font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  variant="secondary"
                 >
                   Archive
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -368,13 +365,14 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
                     </div>
                   )}
 
-                  <button
+                  <Button
                     onClick={() => setShowAssignModal(false)}
                     disabled={assigningToThread}
-                    className="w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium py-2 px-4 rounded-md transition-colors disabled:opacity-50 cursor-pointer"
+                    variant="secondary"
+                    className="w-full"
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -481,8 +479,9 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
       </header>
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="flex-1 flex flex-col bg-background overflow-hidden">
-          {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto px-6 py-4 bg-muted/50" style={{ minHeight: 0 }}>
+          <div className="mx-auto flex h-full w-full max-w-[760px] flex-col">
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto px-6 py-4" style={{ minHeight: 0 }}>
             {loadingMessages ? (
               <div className="text-center text-muted-foreground text-sm py-8">
                 Loading messages...
@@ -492,23 +491,63 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
                 No messages yet. Start the conversation!
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-12">
                 {messages.map((message, messageIndex) => {
                   const isUser = message.sender === 'user';
                   const isAgent = message.sender === 'agent';
                   const isSeller = message.sender === 'seller';
                   const hasError = message.status === 'error';
 
+                  // Agent replies render as plain text (no bubble)
+                  if (isAgent) {
+                    return (
+                      <div
+                        key={message.tempId || message.id}
+                        className="flex items-start gap-3 justify-start mt-4"
+                      >
+                        <Image
+                          src="/random-headshot_cropped.png"
+                          alt="Agent avatar"
+                          width={40}
+                          height={40}
+                          className="rounded-full border border-border bg-card shrink-0 -translate-y-4 -translate-x-4"
+                        />
+                        <div className="space-y-2 text-lg leading-relaxed text-foreground">
+                          <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(message.timestamp).toLocaleString()}
+                          </div>
+                          {selectedThreadId && !hasError && user?.gmailConnected && (
+                            <div className="pt-1">
+                              <SendEmailButton
+                                messageId={message.id}
+                                messageContent={message.content}
+                                replyableMessageId={findReplyableMessageId(messageIndex)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div
                       key={message.tempId || message.id}
                       className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
                     >
-                      <div className={`max-w-[70%] ${isUser ? 'order-2' : 'order-1'}`}>
+                      <div
+                        className={
+                          isUser
+                            ? 'max-w-[70%] order-2'
+                            : isSeller
+                            ? 'w-full max-w-full order-1'
+                            : 'max-w-[70%] order-1'
+                        }
+                      >
                         {/* Sender label */}
                         <div className={`text-xs text-muted-foreground mb-1 ${isUser ? 'text-right' : 'text-left'}`}>
                           {isUser && 'You'}
-                          {isAgent && 'AI Agent'}
                           {isSeller && selectedThread?.sellerName}
                         </div>
 
@@ -516,10 +555,9 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
                         <div
                           className={cn(
                             'rounded-lg px-4 py-3',
+                            isSeller && 'w-full',
                             isUser
-                              ? 'bg-blue-600 text-white'
-                              : isAgent
-                              ? 'bg-purple-100 dark:bg-purple-950 text-foreground border border-purple-200 dark:border-purple-800'
+                              ? 'bg-card text-card-foreground border border-border'
                               : 'bg-card text-card-foreground border border-border',
                             hasError && 'border-2 border-red-500'
                           )}
@@ -532,7 +570,7 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
                           <div
                             className={cn(
                               'text-xs mt-2',
-                              isUser ? 'text-blue-100' : 'text-muted-foreground'
+                              'text-muted-foreground'
                             )}
                           >
                             {hasError ? (
@@ -546,17 +584,6 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
                               new Date(message.timestamp).toLocaleString()
                             )}
                           </div>
-
-                          {/* AI agent send email button */}
-                          {isAgent && selectedThreadId && !hasError && user?.gmailConnected && (
-                            <div className="mt-2">
-                              <SendEmailButton
-                                messageId={message.id}
-                                messageContent={message.content}
-                                replyableMessageId={findReplyableMessageId(messageIndex)}
-                              />
-                            </div>
-                          )}
 
                           {/* Seller track offer button */}
                           {isSeller && selectedThreadId && !hasError && (
@@ -591,26 +618,23 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
                 <div ref={messagesEndRef} />
               </div>
             )}
-          </div>
+            </div>
 
-          {/* Message Input */}
-          <div className="border-t border-border px-6 py-4 bg-card shrink-0">
-            <div className="flex w-full items-center gap-2">
-              <Input
-                value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type a message... (Ctrl/Cmd+Enter to send)"
-                disabled={sendingMessage}
-              />
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={sendingMessage || !messageInput.trim()}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  {sendingMessage ? 'Sending...' : 'Send'}
-                </Button>
+            {/* Message Input */}
+            <div className="px-6 py-4 shrink-0">
+              <div className="flex w-full items-center gap-2">
+                <Input
+                  value={messageInput}
+                  onChange={(e) => setMessageInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type a message... (Ctrl/Cmd+Enter to send)"
+                  disabled={sendingMessage}
+                />
+                <div className="flex gap-2">
+                  <Button onClick={handleSendMessage} disabled={sendingMessage || !messageInput.trim()}>
+                    {sendingMessage ? 'Sending...' : 'Send'}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
