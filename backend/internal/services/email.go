@@ -15,13 +15,15 @@ type EmailService struct {
 	db            *gorm.DB
 	mailgunAPIKey string
 	mailgunDomain string
+	gmailService  *GmailService
 }
 
-func NewEmailService(db *gorm.DB, mailgunAPIKey, mailgunDomain string) *EmailService {
+func NewEmailService(db *gorm.DB, mailgunAPIKey, mailgunDomain string, gmailService *GmailService) *EmailService {
 	return &EmailService{
 		db:            db,
 		mailgunAPIKey: mailgunAPIKey,
 		mailgunDomain: mailgunDomain,
+		gmailService:  gmailService,
 	}
 }
 
@@ -88,4 +90,34 @@ func (s *EmailService) cleanEmailBody(body string) string {
 
 	cleaned := strings.Join(cleanedLines, "\n")
 	return strings.TrimSpace(cleaned)
+}
+
+// ReplyViaGmail sends threaded reply from user's Gmail
+// This is called when user clicks "Send Email" on an AI-drafted response
+func (s *EmailService) ReplyViaGmail(userID uuid.UUID, inboxMessageID uuid.UUID, replyContent string) error {
+	// 1. Get original inbox message from DB by ID
+	var message models.Message
+	if err := s.db.First(&message, inboxMessageID).Error; err != nil {
+		return fmt.Errorf("message not found: %w", err)
+	}
+
+	// 2. Validate message has email metadata
+	if message.ExternalMessageID == "" || message.SenderEmail == "" {
+		return fmt.Errorf("message was not received via email")
+	}
+
+	// 3. Build reply subject
+	replySubject := message.Subject
+	if !strings.HasPrefix(replySubject, "Re:") {
+		replySubject = "Re: " + replySubject
+	}
+
+	// 4. Send reply via Gmail
+	return s.gmailService.SendReply(
+		userID,
+		message.SenderEmail,      // to
+		replySubject,             // subject
+		replyContent,             // body (from AI draft)
+		message.ExternalMessageID, // In-Reply-To header
+	)
 }

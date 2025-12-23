@@ -52,14 +52,28 @@ func main() {
 	claudeService := services.NewClaudeService(cfg.AnthropicAPIKey)
 	threadService := services.NewThreadService(database.DB)
 	messageService := services.NewMessageService(database.DB, claudeService)
-	emailService := services.NewEmailService(database.DB, cfg.MailgunAPIKey, cfg.MailgunDomain)
+
+	// Initialize Gmail service (for sending emails via user's Gmail)
+	gmailService, err := services.NewGmailService(
+		database.DB,
+		cfg.GoogleClientID,
+		cfg.GoogleClientSecret,
+		cfg.GoogleRedirectURL,
+		cfg.TokenEncryptionKey,
+	)
+	if err != nil {
+		log.Fatalf("Failed to initialize Gmail service: %v", err)
+	}
+
+	emailService := services.NewEmailService(database.DB, cfg.MailgunAPIKey, cfg.MailgunDomain, gmailService)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService)
 	preferencesHandler := handlers.NewPreferencesHandler(preferencesService)
 	threadHandler := handlers.NewThreadHandler(threadService)
-	messageHandler := handlers.NewMessageHandler(messageService)
+	messageHandler := handlers.NewMessageHandler(messageService, emailService)
 	emailHandler := handlers.NewEmailHandler(emailService, cfg.MailgunWebhookSigningKey, database.DB)
+	gmailHandler := handlers.NewGmailHandler(gmailService, cfg.AllowedOrigins[0]) // Use first allowed origin as frontend URL
 	offerHandler := handlers.NewOfferHandler(database)
 
 	// Initialize router
@@ -157,12 +171,29 @@ func main() {
 			r.Delete("/messages/{id}", messageHandler.ArchiveInboxMessage)
 		})
 
+		// Gmail OAuth routes (all protected)
+		r.Route("/gmail", func(r chi.Router) {
+			r.Use(middleware.AuthMiddleware(authService))
+			r.Get("/connect", gmailHandler.GetAuthURL)
+			r.Get("/status", gmailHandler.GetGmailStatus)
+			r.Post("/disconnect", gmailHandler.DisconnectGmail)
+		})
+
+		// Message reply route (protected)
+		r.Route("/messages", func(r chi.Router) {
+			r.Use(middleware.AuthMiddleware(authService))
+			r.Post("/{messageId}/reply-via-gmail", messageHandler.ReplyViaGmail)
+		})
+
 		// Webhook routes (public - no auth)
 		r.Route("/webhooks", func(r chi.Router) {
 			r.Post("/email/inbound", emailHandler.InboundEmail)
 			r.Post("/email/test", emailHandler.TestInboundEmail) // For testing without Mailgun
 		})
 	})
+
+	// OAuth callback route (public - outside /api/v1)
+	r.Get("/oauth/callback", gmailHandler.OAuthCallback)
 
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.Port)
