@@ -47,7 +47,9 @@ export default function LoginPage() {
       setError('');
       await login(data.email, data.password);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed');
+      const errorMessage = err.response?.data?.error || 'Login failed';
+      console.error('Login error:', errorMessage, err);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

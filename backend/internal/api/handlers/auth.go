@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"carbuyer/internal/api/middleware"
@@ -74,6 +75,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	// Register user
 	user, err := h.authService.RegisterUser(req.Email, req.Password)
 	if err != nil {
+		log.Printf("Registration error for email %s: %v", req.Email, err)
 		w.Header().Set("Content-Type", "application/json")
 		if err.Error() == "user with this email already exists" {
 			w.WriteHeader(http.StatusConflict)
@@ -120,6 +122,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Authenticate user
 	user, err := h.authService.AuthenticateUser(req.Email, req.Password)
 	if err != nil {
+		log.Printf("Login error for email %s: %v", req.Email, err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})

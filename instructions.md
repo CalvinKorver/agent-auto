@@ -41,6 +41,10 @@
 - Frontend: deploy `frontend/` on Vercel with `npm run build`.
 - Vercel env: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_ENVIRONMENT`. Backend CORS must include deployed frontend URL.
 
+### Logging
+- **Backend (Go)**: Uses standard library `log` package. Import with `import "log"`. Use `log.Printf()` for formatted logging, `log.Println()` for simple messages. Example: `log.Printf("Login error for email %s: %v", email, err)`. All authentication errors (login/register failures) are logged with email and error details.
+- **Frontend (TypeScript/Next.js)**: Uses browser `console.error()` for error logging. Example: `console.error('Login error:', errorMessage, err)`. All authentication errors (login/register failures) are logged to browser console with error message and full error object.
+
 ### Helpful References
 - UI/feature status: `DOCS/IMPLEMENTATION_PLAN.md` (Phase 1 chat complete; offer tracking planned).
 - Design mocks: `ui-mockup/`.

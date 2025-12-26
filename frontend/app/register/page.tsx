@@ -47,7 +47,9 @@ export default function RegisterPage() {
       setError('');
       await registerUser(data.email, data.password);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Registration failed');
+      const errorMessage = err.response?.data?.error || 'Registration failed';
+      console.error('Registration error:', errorMessage, err);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -65,7 +67,7 @@ export default function RegisterPage() {
               height={60}
               className="h-12 w-auto"
             />
-          </div>          
+          </div>            
           <p className="text-sm text-muted-foreground">Create your account</p>
         </div>
 
