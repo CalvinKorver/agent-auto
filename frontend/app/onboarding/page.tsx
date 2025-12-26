@@ -2,8 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import PreferencesForm from '@/components/PreferencesForm';
-import Header from '@/components/Header';
+import OnboardingContainer from '@/components/onboarding/OnboardingContainer';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -14,10 +13,5 @@ export default function OnboardingPage() {
     router.push('/dashboard');
   };
 
-  return (
-    <>
-      <Header />
-      <PreferencesForm onSuccess={handleSuccess} />
-    </>
-  );
+  return <OnboardingContainer onSuccess={handleSuccess} />;
 }

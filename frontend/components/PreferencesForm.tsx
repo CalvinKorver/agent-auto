@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { preferencesAPI } from '@/lib/api';
+import { Button } from '@/components/ui/button';
 
 const preferencesSchema = z.object({
   year: z.number().min(2000).max(2030),
@@ -114,13 +115,9 @@ export default function PreferencesForm({ onSuccess }: PreferencesFormProps) {
             )}
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-          >
+          <Button type="submit" disabled={loading} className="w-full">
             {loading ? 'SAVING...' : 'START NEGOTIATING'}
-          </button>
+          </Button>
         </form>
       </div>
     </div>

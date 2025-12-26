@@ -1,0 +1,10 @@
+## Cursor Default Notes (Lolo AI)
+- Purpose: AI car-buying assistant. Backend: Go/chi + Postgres + GORM + Claude; Frontend: Next.js 14 TS + Tailwind + shadcn.
+- Run all dev: `./dev.sh` (Air hot reload + `npm run dev`). Backend only: `cd backend && go run cmd/server/main.go`. Frontend only: `cd frontend && npm run dev`. Health: `curl http://localhost:8080/health`.
+- Backend entry: `backend/cmd/server/main.go`; config env reading in `backend/internal/config/config.go`; services in `backend/internal/services/`; handlers in `backend/internal/api/handlers/`; models/db in `backend/internal/db`.
+- Key env (req): `DATABASE_URL`, `JWT_SECRET`, `ANTHROPIC_API_KEY`; plus Mailgun (`MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `MAILGUN_WEBHOOK_SIGNING_KEY`), Gmail (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URL` default `http://localhost:3000/oauth/callback`, `TOKEN_ENCRYPTION_KEY`), `ALLOWED_ORIGINS` list, `RATE_LIMIT_AUTH/API`, `PORT`/`ENVIRONMENT`.
+- API surface (all JWT unless noted): `/health`; `/api/v1/auth register|login|me|logout`; `/preferences get|post`; `/threads list|create|get|delete` + `/threads/{id}/messages get|post` + `/threads/{id}/offers post`; `/offers get`; `/inbox/messages get|assign|delete`; `/gmail connect|status|disconnect`; `/messages/{messageId}/reply-via-gmail`; webhooks `/api/v1/webhooks/email/inbound|test`; OAuth callback `/oauth/callback`.
+- Docs to check first: `instructions.md`, `README.md`, `DOCS/QUICKSTART.md`, `DOCS/IMPLEMENTATION_PLAN.md`, `backend/MIGRATIONS.md`, `backend/TESTING.md`.
+- Gmail test login from testing doc: email `test@example.com`, password `testpass123`.
+- Use shadcn components for frontend UI; prefer extracting components over large files.
+

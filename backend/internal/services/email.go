@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -15,13 +16,15 @@ type EmailService struct {
 	db            *gorm.DB
 	mailgunAPIKey string
 	mailgunDomain string
+	gmailService  *GmailService
 }
 
-func NewEmailService(db *gorm.DB, mailgunAPIKey, mailgunDomain string) *EmailService {
+func NewEmailService(db *gorm.DB, mailgunAPIKey, mailgunDomain string, gmailService *GmailService) *EmailService {
 	return &EmailService{
 		db:            db,
 		mailgunAPIKey: mailgunAPIKey,
 		mailgunDomain: mailgunDomain,
+		gmailService:  gmailService,
 	}
 }
 
@@ -30,6 +33,17 @@ func (s *EmailService) ProcessInboundEmail(userID uuid.UUID, from, subject, body
 	// Parse and clean email body
 	cleanedBody := s.cleanEmailBody(body)
 
+	fmt.Printf("Cleaned body: %s", cleanedBody)
+
+	// Try to extract original sender from forwarded email body
+	originalSender := s.extractOriginalSenderFromBody(body)
+	senderEmail := from
+	if originalSender != "" {
+		senderEmail = originalSender
+	}
+
+	fmt.Printf("Original sender: %s", originalSender)
+
 	// Create inbox message (thread_id = nil)
 	message := &models.Message{
 		UserID:            userID,
@@ -37,7 +51,7 @@ func (s *EmailService) ProcessInboundEmail(userID uuid.UUID, from, subject, body
 		Sender:            models.SenderTypeSeller,
 		Content:           cleanedBody,
 		Timestamp:         time.Now(),
-		SenderEmail:       from,
+		SenderEmail:       senderEmail,
 		ExternalMessageID: messageID,
 		Subject:           subject,
 		SentViaEmail:      true,
@@ -58,6 +72,45 @@ func (s *EmailService) ProcessInboundEmail(userID uuid.UUID, from, subject, body
 	}
 
 	return message, nil
+}
+
+// extractOriginalSenderFromBody extracts the original sender email from a forwarded email body
+// Looks for pattern: "---------- Forwarded message ---------\nFrom: Name <email@domain.com>"
+// Returns the email address if found, empty string otherwise
+func (s *EmailService) extractOriginalSenderFromBody(body string) string {
+	// Pattern to match forwarded message header and From line
+	// Case-insensitive, handles variable number of dashes and whitespace variations
+	// Matches: "---------- Forwarded message ---------" followed by "From: ..."
+	// Uses -+ to match one or more dashes (more flexible than exact count)
+	forwardedPattern := regexp.MustCompile(`(?i)-+\s*Forwarded\s+message\s*-+\s*From:\s*(.+)`)
+	
+	matches := forwardedPattern.FindStringSubmatch(body)
+	if len(matches) < 2 {
+		return ""
+	}
+
+	fmt.Printf("Matches: %v", matches)
+	
+	// Extract the From line content (e.g., "Robyn Langevin <robyndl8uw@gmail.com>" or "email@domain.com")
+	fromLine := strings.TrimSpace(matches[1])
+	if fromLine == "" {
+		return ""
+	}
+
+	fmt.Printf("From line: %s", fromLine)
+	
+	// Extract email address from "Name <email@domain.com>" or "email@domain.com"
+	// This pattern matches email addresses with optional angle brackets
+	emailPattern := regexp.MustCompile(`<?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})>?`)
+	
+	emailMatches := emailPattern.FindStringSubmatch(fromLine)
+	if len(emailMatches) < 2 {
+		return ""
+	}
+
+	fmt.Printf("Email matches: %v", emailMatches)
+	
+	return strings.ToLower(emailMatches[1]) // Normalize to lowercase
 }
 
 // cleanEmailBody removes quoted text and cleans up email formatting
@@ -88,4 +141,38 @@ func (s *EmailService) cleanEmailBody(body string) string {
 
 	cleaned := strings.Join(cleanedLines, "\n")
 	return strings.TrimSpace(cleaned)
+}
+
+// ReplyViaGmail sends threaded reply from user's Gmail
+// This is called when user clicks "Send Email" on an AI-drafted response
+func (s *EmailService) ReplyViaGmail(userID uuid.UUID, inboxMessageID uuid.UUID, replyContent string) error {
+	// 1. Get original inbox message from DB by ID
+	
+
+	var message models.Message
+	if err := s.db.First(&message, inboxMessageID).Error; err != nil {
+		return fmt.Errorf("message not found: %w", err)
+	}
+
+	// 2. Validate message has email metadata
+	if message.ExternalMessageID == "" || message.SenderEmail == "" {
+		return fmt.Errorf("message was not received via email")
+	}
+
+	fmt.Printf("Sender email: %s", message.SenderEmail)
+
+	// 3. Build reply subject
+	replySubject := message.Subject
+	if !strings.HasPrefix(replySubject, "Re:") {
+		replySubject = "Re: " + replySubject
+	}
+
+	// 4. Send reply via Gmail
+	return s.gmailService.SendReply(
+		userID,
+		message.SenderEmail,      // to
+		replySubject,             // subject
+		replyContent,             // body (from AI draft)
+		message.ExternalMessageID, // In-Reply-To header
+	)
 }

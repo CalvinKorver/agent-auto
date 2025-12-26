@@ -16,6 +16,8 @@ interface ArchiveConfirmDialogProps {
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
   archiving: boolean;
+  title?: string;
+  description?: string;
 }
 
 export default function ArchiveConfirmDialog({
@@ -23,14 +25,16 @@ export default function ArchiveConfirmDialog({
   onOpenChange,
   onConfirm,
   archiving,
+  title = "Archive this message?",
+  description = "This will remove the message from your inbox. You won't be able to access it anymore.",
 }: ArchiveConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Archive this message?</AlertDialogTitle>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>
-            This will remove the message from your inbox. You won't be able to access it anymore.
+            {description}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

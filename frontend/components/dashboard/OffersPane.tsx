@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 import { TrackedOffer, offerAPI } from '@/lib/api';
 
 interface OffersPaneProps {
@@ -51,12 +52,9 @@ export default function OffersPane({ onNavigateToThread }: OffersPaneProps) {
       <div className="flex-1 flex items-center justify-center bg-background">
         <div className="text-center max-w-md">
           <div className="text-red-500 mb-4">{error}</div>
-          <button
-            onClick={loadOffers}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-          >
+          <Button onClick={loadOffers}>
             Retry
-          </button>
+          </Button>
         </div>
       </div>
     );

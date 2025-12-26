@@ -1,16 +1,38 @@
+'use client';
+
 import Link from 'next/link';
+import Image from 'next/image';
+import { useTheme } from 'next-themes';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Car, MessageSquare, Bell, TrendingUp } from 'lucide-react';
 
 export default function LandingPage() {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Use dark color logo in light mode, original in dark mode
+  const logoSrc = mounted && theme === 'light' 
+    ? '/lolo-logo-dark-color-v1.png' 
+    : '/lolo-logo-v2.png';
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
       {/* Hero Section */}
       <header className="container mx-auto px-4 py-6">
         <nav className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Car className="size-8 text-primary" />
-            <span className="text-2xl font-bold">AgentAuto</span>
+          <div className="flex items-center">
+            <Image
+              src={logoSrc}
+              alt="Lolo AI"
+              width={200}
+              height={60}
+              className="h-12 w-auto"
+            />
           </div>
           <div className="flex gap-3">
             <Link href="/login">
@@ -59,7 +81,7 @@ export default function LandingPage() {
           <FeatureCard
             icon={<Bell className="size-10 text-primary" />}
             title="Track & Compare"
-            description="Manage all dealer conversations in one place. Compare offers side-by-side - our he model will keep track of all offers."
+            description="Manage all dealer conversations in one place. Compare offers side-by-side - Lolo will keep track of all offers."
           />
         </div>
       </section>

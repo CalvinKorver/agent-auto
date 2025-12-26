@@ -9,12 +9,14 @@ import (
 )
 
 type AuthHandler struct {
-	authService *services.AuthService
+	authService  *services.AuthService
+	gmailService *services.GmailService
 }
 
-func NewAuthHandler(authService *services.AuthService) *AuthHandler {
+func NewAuthHandler(authService *services.AuthService, gmailService *services.GmailService) *AuthHandler {
 	return &AuthHandler{
-		authService: authService,
+		authService:  authService,
+		gmailService: gmailService,
 	}
 }
 
@@ -38,11 +40,13 @@ type AuthResponse struct {
 
 // UserResponse represents a user in API responses
 type UserResponse struct {
-	ID          string                 `json:"id"`
-	Email       string                 `json:"email"`
-	InboxEmail  string                 `json:"inboxEmail"`
-	CreatedAt   string                 `json:"createdAt"`
-	Preferences *PreferencesResponse   `json:"preferences,omitempty"`
+	ID             string               `json:"id"`
+	Email          string               `json:"email"`
+	InboxEmail     string               `json:"inboxEmail"`
+	CreatedAt      string               `json:"createdAt"`
+	Preferences    *PreferencesResponse `json:"preferences,omitempty"`
+	GmailConnected bool                 `json:"gmailConnected"`
+	GmailEmail     string               `json:"gmailEmail,omitempty"`
 }
 
 // PreferencesResponse represents user preferences in API responses
@@ -170,7 +174,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		ID:         user.ID.String(),
 		Email:      user.Email,
 		InboxEmail: user.InboxEmail,
-		CreatedAt: user.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		CreatedAt:  user.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 
 	// Add preferences if they exist
@@ -179,6 +183,15 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 			Year:  user.Preferences.Year,
 			Make:  user.Preferences.Make,
 			Model: user.Preferences.Model,
+		}
+	}
+
+	// Check Gmail connection status
+	userResp.GmailConnected = h.gmailService.IsConnected(userID)
+	if userResp.GmailConnected {
+		gmailEmail, err := h.gmailService.GetGmailEmail(userID)
+		if err == nil && gmailEmail != "" {
+			userResp.GmailEmail = gmailEmail
 		}
 	}
 

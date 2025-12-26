@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { IconMail, IconMessageCircle, IconPlus, IconCopy, IconCheck, IconCar } from '@tabler/icons-react';
+import { IconMail, IconMessageCircle, IconPlus, IconCopy, IconCheck } from '@tabler/icons-react';
 import { Thread, InboxMessage, messageAPI, threadAPI } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { SidebarInboxItem } from './SidebarInboxItem';
+import { NavUser } from './NavUser';
 import {
   Sidebar,
   SidebarContent,
@@ -136,20 +137,11 @@ export function AppSidebar({
     <>
       <Sidebar {...props}>
 
-        <SidebarHeader className="p-4">
-        <SidebarMenu>
-                      <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
-            >
-              <a href="#">
-                <IconCar className="h-12 w-12" />
-                <span className="text-base font-semibold">Agent Auto</span>
-              </a>
-            </SidebarMenuButton>
-
-        </SidebarMenu>
-
+        <SidebarHeader className="border-sidebar-border h-16 border-b">
+          <NavUser user={{
+            name: user?.email?.split('@')[0] || 'User',
+            email: user?.email || ''
+          }} />
         </SidebarHeader>
         <SidebarContent>
 
@@ -179,10 +171,6 @@ export function AppSidebar({
               <div className="flex flex-col gap-2 px-2">
                 {loadingInbox ? (
                   <div className="px-2 py-2 text-sm text-muted-foreground">Loading...</div>
-                ) : inboxMessages.length === 0 ? (
-                  <div className="px-2 py-2 text-sm text-muted-foreground italic">
-                    No new messages
-                  </div>
                 ) : (
                   inboxMessages.map((message) => (
                     <SidebarInboxItem
@@ -218,9 +206,6 @@ export function AppSidebar({
                         className="flex flex-col items-start h-auto py-2"
                       >
                         <div className="font-medium">{thread.sellerName}</div>
-                        <div className="text-xs text-muted-foreground capitalize">
-                          {thread.sellerType}
-                        </div>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))
@@ -247,7 +232,7 @@ export function AppSidebar({
           <DialogHeader>
             <DialogTitle>Forward Emails Here</DialogTitle>
             <DialogDescription>
-              Forward emails from sellers to this address and they'll appear in your inbox:
+              Forward or BCC emails from sellers to this address and they'll appear in your inbox:
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
@@ -279,7 +264,7 @@ export function AppSidebar({
           <DialogHeader>
             <DialogTitle>Create New Seller Thread</DialogTitle>
             <DialogDescription>
-              Start a new conversation with a seller
+              Start a thread to organize and track your communication with this seller.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateThread} className="space-y-4">

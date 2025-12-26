@@ -14,11 +14,13 @@ import (
 
 type MessageHandler struct {
 	messageService *services.MessageService
+	emailService   *services.EmailService
 }
 
-func NewMessageHandler(messageService *services.MessageService) *MessageHandler {
+func NewMessageHandler(messageService *services.MessageService, emailService *services.EmailService) *MessageHandler {
 	return &MessageHandler{
 		messageService: messageService,
+		emailService:   emailService,
 	}
 }
 
@@ -30,11 +32,14 @@ type MessageRequest struct {
 
 // MessageResponse represents a message in API responses
 type MessageResponse struct {
-	ID        string `json:"id"`
-	ThreadID  string `json:"threadId"`
-	Sender    string `json:"sender"`
-	Content   string `json:"content"`
-	Timestamp string `json:"timestamp"`
+	ID                string `json:"id"`
+	ThreadID          string `json:"threadId"`
+	Sender            string `json:"sender"`
+	Content           string `json:"content"`
+	Timestamp         string `json:"timestamp"`
+	ExternalMessageID string `json:"externalMessageId,omitempty"`
+	SenderEmail       string `json:"senderEmail,omitempty"`
+	Subject           string `json:"subject,omitempty"`
 }
 
 // GetMessages retrieves messages for a thread
@@ -96,11 +101,14 @@ func (h *MessageHandler) GetMessages(w http.ResponseWriter, r *http.Request) {
 	response.Messages = make([]MessageResponse, len(messages))
 	for i, msg := range messages {
 		response.Messages[i] = MessageResponse{
-			ID:        msg.ID.String(),
-			ThreadID:  msg.ThreadID.String(),
-			Sender:    string(msg.Sender),
-			Content:   msg.Content,
-			Timestamp: msg.Timestamp.Format("2006-01-02T15:04:05Z"),
+			ID:                msg.ID.String(),
+			ThreadID:          msg.ThreadID.String(),
+			Sender:            string(msg.Sender),
+			Content:           msg.Content,
+			Timestamp:         msg.Timestamp.Format("2006-01-02T15:04:05Z"),
+			ExternalMessageID: msg.ExternalMessageID,
+			SenderEmail:       msg.SenderEmail,
+			Subject:           msg.Subject,
 		}
 	}
 
@@ -156,11 +164,14 @@ func (h *MessageHandler) CreateMessage(w http.ResponseWriter, r *http.Request) {
 			SellerMessage MessageResponse `json:"sellerMessage"`
 		}{
 			SellerMessage: MessageResponse{
-				ID:        sellerMsg.ID.String(),
-				ThreadID:  sellerMsg.ThreadID.String(),
-				Sender:    string(sellerMsg.Sender),
-				Content:   sellerMsg.Content,
-				Timestamp: sellerMsg.Timestamp.Format("2006-01-02T15:04:05Z"),
+				ID:                sellerMsg.ID.String(),
+				ThreadID:          sellerMsg.ThreadID.String(),
+				Sender:            string(sellerMsg.Sender),
+				Content:           sellerMsg.Content,
+				Timestamp:         sellerMsg.Timestamp.Format("2006-01-02T15:04:05Z"),
+				ExternalMessageID: sellerMsg.ExternalMessageID,
+				SenderEmail:       sellerMsg.SenderEmail,
+				Subject:           sellerMsg.Subject,
 			},
 		})
 		return
@@ -180,21 +191,27 @@ func (h *MessageHandler) CreateMessage(w http.ResponseWriter, r *http.Request) {
 		AgentMessage *MessageResponse `json:"agentMessage,omitempty"`
 	}{
 		UserMessage: MessageResponse{
-			ID:        userMsg.ID.String(),
-			ThreadID:  userMsg.ThreadID.String(),
-			Sender:    string(userMsg.Sender),
-			Content:   userMsg.Content,
-			Timestamp: userMsg.Timestamp.Format("2006-01-02T15:04:05Z"),
+			ID:                userMsg.ID.String(),
+			ThreadID:          userMsg.ThreadID.String(),
+			Sender:            string(userMsg.Sender),
+			Content:           userMsg.Content,
+			Timestamp:         userMsg.Timestamp.Format("2006-01-02T15:04:05Z"),
+			ExternalMessageID: userMsg.ExternalMessageID,
+			SenderEmail:       userMsg.SenderEmail,
+			Subject:           userMsg.Subject,
 		},
 	}
 
 	if agentMsg != nil {
 		response.AgentMessage = &MessageResponse{
-			ID:        agentMsg.ID.String(),
-			ThreadID:  agentMsg.ThreadID.String(),
-			Sender:    string(agentMsg.Sender),
-			Content:   agentMsg.Content,
-			Timestamp: agentMsg.Timestamp.Format("2006-01-02T15:04:05Z"),
+			ID:                agentMsg.ID.String(),
+			ThreadID:          agentMsg.ThreadID.String(),
+			Sender:            string(agentMsg.Sender),
+			Content:           agentMsg.Content,
+			Timestamp:         agentMsg.Timestamp.Format("2006-01-02T15:04:05Z"),
+			ExternalMessageID: agentMsg.ExternalMessageID,
+			SenderEmail:       agentMsg.SenderEmail,
+			Subject:           agentMsg.Subject,
 		}
 	}
 
@@ -364,4 +381,62 @@ func (h *MessageHandler) ArchiveInboxMessage(w http.ResponseWriter, r *http.Requ
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "archived successfully"})
+}
+
+// ReplyViaGmail sends an email reply via user's connected Gmail
+// POST /api/v1/messages/{messageId}/reply-via-gmail
+func (h *MessageHandler) ReplyViaGmail(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserIDFromContext(r.Context())
+	if !ok {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "unauthorized"})
+		return
+	}
+
+	messageIDStr := chi.URLParam(r, "messageId")
+	messageID, err := uuid.Parse(messageIDStr)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid message ID"})
+		return
+	}
+
+	var req struct {
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	if req.Content == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "content is required"})
+		return
+	}
+
+	// Send reply via Gmail
+	if err := h.emailService.ReplyViaGmail(userID, messageID, req.Content); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		if err.Error() == "message not found" {
+			w.WriteHeader(http.StatusNotFound)
+		} else if err.Error() == "message was not received via email" {
+			w.WriteHeader(http.StatusBadRequest)
+		} else if err.Error() == "gmail not connected" {
+			w.WriteHeader(http.StatusBadRequest)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "email sent successfully"})
 }

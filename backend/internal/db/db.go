@@ -34,6 +34,7 @@ func (d *Database) AutoMigrate() error {
 		&models.Thread{},
 		&models.Message{},
 		&models.TrackedOffer{},
+		&models.GmailToken{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

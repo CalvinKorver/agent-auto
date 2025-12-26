@@ -112,3 +112,47 @@ func (h *PreferencesHandler) CreatePreferences(w http.ResponseWriter, r *http.Re
 		CreatedAt: prefs.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	})
 }
+
+// UpdatePreferences updates user preferences
+func (h *PreferencesHandler) UpdatePreferences(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from context
+	userID, ok := middleware.GetUserIDFromContext(r.Context())
+	if !ok {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "unauthorized"})
+		return
+	}
+
+	// Parse request body
+	var req PreferencesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	// Update preferences
+	prefs, err := h.prefsService.UpdateUserPreferences(userID, req.Year, req.Make, req.Model)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		if err.Error() == "preferences not found" {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	// Return response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(PreferencesFullResponse{
+		Year:      prefs.Year,
+		Make:      prefs.Make,
+		Model:     prefs.Model,
+		CreatedAt: prefs.CreatedAt.Format("2006-01-02T15:04:05Z"),
+	})
+}

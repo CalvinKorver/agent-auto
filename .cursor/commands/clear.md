@@ -1,0 +1,1 @@
+Clear previous agent conversation and reset context

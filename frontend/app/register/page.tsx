@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
+import Image from 'next/image';
+import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -17,7 +20,18 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const { theme } = useTheme();
   const { register: registerUser } = useAuth();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Use dark color logo in light mode, original in dark mode
+  const logoSrc = mounted && theme === 'light' 
+    ? '/lolo-logo-dark-color-v1.png' 
+    : '/lolo-logo-v2.png';
 
   const {
     register,
@@ -43,8 +57,15 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="max-w-md w-full bg-card rounded-lg shadow-md border border-border p-8">
         <div className="text-center mb-8">
-          <div className="text-4xl mb-4">🚗</div>
-          <h1 className="text-2xl font-bold text-card-foreground mb-2">Agent Auto</h1>
+          <div className="mb-4 flex justify-center">
+            <Image
+              src={logoSrc}
+              alt="Lolo AI"
+              width={200}
+              height={60}
+              className="h-12 w-auto"
+            />
+          </div>          
           <p className="text-sm text-muted-foreground">Create your account</p>
         </div>
 
@@ -87,18 +108,14 @@ export default function RegisterPage() {
             )}
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-          >
+          <Button type="submit" disabled={loading} className="w-full">
             {loading ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT'}
-          </button>
+          </Button>
         </form>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Already have an account?{' '}
-          <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+          <Link href="/login" className="text-primary hover:text-primary/80 font-medium">
             Sign in
           </Link>
         </p>

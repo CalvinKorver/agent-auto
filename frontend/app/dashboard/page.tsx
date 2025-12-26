@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppSidebar } from '@/components/dashboard/AppSidebar';
 import ChatPane from '@/components/dashboard/ChatPane';
@@ -9,17 +9,32 @@ import TopNavBar from '@/components/dashboard/TopNavBar';
 import OffersPane from '@/components/dashboard/OffersPane';
 import { Thread, threadAPI, InboxMessage } from '@/lib/api';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
+import { toast } from 'sonner';
 
 type ViewMode = 'chat' | 'inbox' | 'offers';
 
-export default function DashboardPage() {
-  const { user, loading } = useAuth();
+function DashboardContent() {
+  const { user, loading, refreshUser } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [selectedInboxMessage, setSelectedInboxMessage] = useState<InboxMessage | null>(null);
   const [loadingThreads, setLoadingThreads] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('chat');
+
+  // Check if user just connected Gmail
+  useEffect(() => {
+    const gmailConnected = searchParams.get('gmail_connected');
+    if (gmailConnected === 'true') {
+      // Refresh user data to get updated Gmail connection status
+      refreshUser();
+      // Show success toast
+      toast.success('Gmail connected successfully!');
+      // Clean up URL
+      router.replace('/dashboard');
+    }
+  }, [searchParams, router, refreshUser]);
 
   useEffect(() => {
     if (!loading) {
@@ -36,6 +51,15 @@ export default function DashboardPage() {
       loadThreads();
     }
   }, [user]);
+
+  useEffect(() => {
+    const handleRefresh = () => {
+      loadThreads();
+      setSelectedThreadId(null);
+    };
+    window.addEventListener('refreshThreads', handleRefresh);
+    return () => window.removeEventListener('refreshThreads', handleRefresh);
+  }, []);
 
   const loadThreads = async () => {
     setLoadingThreads(true);
@@ -115,9 +139,9 @@ export default function DashboardPage() {
         onThreadCreated={handleThreadCreated}
         onInboxMessageSelect={handleInboxMessageSelect}
       />
-      <SidebarInset>
+      <SidebarInset className="overflow-x-hidden">
         {/* <TopNavBar onViewOffers={handleViewOffers} /> */}
-        <div className="flex flex-1 flex-col">
+        <div className="flex flex-1 flex-col overflow-x-hidden">
           {viewMode === 'offers' ? (
             <OffersPane onNavigateToThread={handleNavigateToThread} />
           ) : (
@@ -131,5 +155,17 @@ export default function DashboardPage() {
         </div>
       </SidebarInset>
     </SidebarProvider>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-gray-600">Loading...</div>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }

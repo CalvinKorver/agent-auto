@@ -20,6 +20,10 @@ type Config struct {
 	MailgunAPIKey            string
 	MailgunDomain            string
 	MailgunWebhookSigningKey string
+	GoogleClientID           string
+	GoogleClientSecret       string
+	GoogleRedirectURL        string
+	TokenEncryptionKey       string
 }
 
 func Load() (*Config, error) {
@@ -37,6 +41,10 @@ func Load() (*Config, error) {
 	mailgunAPIKey := getEnv("MAILGUN_API_KEY", "")
 	mailgunDomain := getEnv("MAILGUN_DOMAIN", "")
 	mailgunWebhookSigningKey := getEnv("MAILGUN_WEBHOOK_SIGNING_KEY", "")
+	googleClientID := getEnv("GOOGLE_CLIENT_ID", "")
+	googleClientSecret := getEnv("GOOGLE_CLIENT_SECRET", "")
+	googleRedirectURL := getEnv("GOOGLE_REDIRECT_URL", "http://localhost:3000/oauth/callback")
+	tokenEncryptionKey := getEnv("TOKEN_ENCRYPTION_KEY", "")
 
 	if databaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL environment variable is required")
@@ -63,6 +71,10 @@ func Load() (*Config, error) {
 		MailgunAPIKey:            mailgunAPIKey,
 		MailgunDomain:            mailgunDomain,
 		MailgunWebhookSigningKey: mailgunWebhookSigningKey,
+		GoogleClientID:           googleClientID,
+		GoogleClientSecret:       googleClientSecret,
+		GoogleRedirectURL:        googleRedirectURL,
+		TokenEncryptionKey:       tokenEncryptionKey,
 	}, nil
 }
 

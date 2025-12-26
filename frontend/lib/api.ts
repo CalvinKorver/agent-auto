@@ -27,6 +27,8 @@ export interface User {
   createdAt: string;
   inboxEmail?: string;
   preferences?: UserPreferences;
+  gmailConnected?: boolean;
+  gmailEmail?: string;
 }
 
 export interface UserPreferences {
@@ -50,6 +52,9 @@ export interface Message {
   sender: 'user' | 'agent' | 'seller';
   content: string;
   timestamp: string;
+  externalMessageId?: string;
+  senderEmail?: string;
+  subject?: string;
 }
 
 export interface InboxMessage {
@@ -139,6 +144,11 @@ export const preferencesAPI = {
     const response = await api.post<UserPreferences>('/preferences', { year, make, model });
     return response.data;
   },
+
+  update: async (year: number, make: string, model: string): Promise<UserPreferences> => {
+    const response = await api.put<UserPreferences>('/preferences', { year, make, model });
+    return response.data;
+  },
 };
 
 // Thread API
@@ -156,6 +166,10 @@ export const threadAPI = {
   create: async (data: CreateThreadRequest): Promise<Thread> => {
     const response = await api.post<Thread>('/threads', data);
     return response.data;
+  },
+
+  archive: async (threadId: string): Promise<void> => {
+    await api.delete(`/threads/${threadId}`);
   },
 };
 
@@ -208,5 +222,26 @@ export const offerAPI = {
   getAllOffers: async (): Promise<TrackedOffer[]> => {
     const response = await api.get<{ offers: TrackedOffer[] }>('/offers');
     return response.data.offers;
+  },
+};
+
+// Gmail API
+export const gmailAPI = {
+  getAuthUrl: async (): Promise<{ authUrl: string; state: string }> => {
+    const response = await api.get<{ authUrl: string; state: string }>('/gmail/connect');
+    return response.data;
+  },
+
+  getStatus: async (): Promise<{ connected: boolean; gmailEmail?: string }> => {
+    const response = await api.get<{ connected: boolean; gmailEmail?: string }>('/gmail/status');
+    return response.data;
+  },
+
+  disconnect: async (): Promise<void> => {
+    await api.post('/gmail/disconnect');
+  },
+
+  replyViaGmail: async (messageId: string, content: string): Promise<void> => {
+    await api.post(`/messages/${messageId}/reply-via-gmail`, { content });
   },
 };

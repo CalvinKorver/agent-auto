@@ -171,3 +171,39 @@ func (h *ThreadHandler) GetThread(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(resp)
 }
+
+// ArchiveThread archives (soft deletes) a thread
+func (h *ThreadHandler) ArchiveThread(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserIDFromContext(r.Context())
+	if !ok {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "unauthorized"})
+		return
+	}
+
+	threadIDStr := chi.URLParam(r, "id")
+	threadID, err := uuid.Parse(threadIDStr)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid thread ID"})
+		return
+	}
+
+	err = h.threadService.ArchiveThread(threadID, userID)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		if err.Error() == "thread not found" {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "thread archived successfully"})
+}

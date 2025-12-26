@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"carbuyer/internal/db/models"
 
@@ -48,7 +49,7 @@ func (s *ThreadService) CreateThread(userID uuid.UUID, sellerName string, seller
 // GetUserThreads retrieves all threads for a user
 func (s *ThreadService) GetUserThreads(userID uuid.UUID) ([]models.Thread, error) {
 	var threads []models.Thread
-	if err := s.db.Where("user_id = ?", userID).Order("created_at DESC").Find(&threads).Error; err != nil {
+	if err := s.db.Where("user_id = ? AND deleted_at IS NULL", userID).Order("created_at DESC").Find(&threads).Error; err != nil {
 		return nil, fmt.Errorf("failed to retrieve threads: %w", err)
 	}
 
@@ -58,7 +59,7 @@ func (s *ThreadService) GetUserThreads(userID uuid.UUID) ([]models.Thread, error
 // GetThreadByID retrieves a specific thread
 func (s *ThreadService) GetThreadByID(threadID, userID uuid.UUID) (*models.Thread, error) {
 	var thread models.Thread
-	if err := s.db.Where("id = ? AND user_id = ?", threadID, userID).First(&thread).Error; err != nil {
+	if err := s.db.Where("id = ? AND user_id = ? AND deleted_at IS NULL", threadID, userID).First(&thread).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("thread not found")
 		}
@@ -77,6 +78,27 @@ func (s *ThreadService) DeleteThread(threadID, userID uuid.UUID) error {
 
 	if result.RowsAffected == 0 {
 		return errors.New("thread not found")
+	}
+
+	return nil
+}
+
+// ArchiveThread soft deletes a thread by setting deleted_at
+func (s *ThreadService) ArchiveThread(threadID, userID uuid.UUID) error {
+	// Verify the thread exists, belongs to the user, and is not already archived
+	var thread models.Thread
+	if err := s.db.Where("id = ? AND user_id = ? AND deleted_at IS NULL", threadID, userID).First(&thread).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return fmt.Errorf("thread not found")
+		}
+		return fmt.Errorf("failed to verify thread: %w", err)
+	}
+
+	// Soft delete the thread by setting deleted_at
+	now := time.Now()
+	thread.DeletedAt = &now
+	if err := s.db.Save(&thread).Error; err != nil {
+		return fmt.Errorf("failed to archive thread: %w", err)
 	}
 
 	return nil
