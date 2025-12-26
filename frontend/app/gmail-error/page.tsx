@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 
-export default function GmailErrorPage() {
+function GmailErrorContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [errorMessage, setErrorMessage] = useState('');
@@ -77,5 +77,17 @@ export default function GmailErrorPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function GmailErrorPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-gray-600">Loading...</div>
+      </div>
+    }>
+      <GmailErrorContent />
+    </Suspense>
   );
 }
