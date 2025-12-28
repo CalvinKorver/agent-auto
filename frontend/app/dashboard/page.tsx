@@ -125,6 +125,13 @@ function DashboardContent() {
     setViewMode('chat');
   };
 
+  const handleGoToDashboard = () => {
+    setSelectedThreadId(null);
+    setSelectedInboxMessage(null);
+    setSelectedOfferId(null);
+    setViewMode('chat');
+  };
+
   if (loading || loadingDashboard) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -159,6 +166,7 @@ function DashboardContent() {
         onThreadCreated={handleThreadCreated}
         onInboxMessageSelect={handleInboxMessageSelect}
         onOfferSelect={handleOfferSelect}
+        onGoToDashboard={handleGoToDashboard}
       />
       <SidebarInset className="overflow-x-hidden">
         {/* <TopNavBar onViewOffers={handleViewOffers} /> */}
@@ -170,7 +178,9 @@ function DashboardContent() {
               selectedThreadId={selectedThreadId}
               selectedInboxMessage={selectedInboxMessage}
               threads={threads}
+              offers={offers}
               onInboxMessageAssigned={handleInboxMessageAssigned}
+              onNavigateToThread={handleNavigateToThread}
             />
           )}
         </div>

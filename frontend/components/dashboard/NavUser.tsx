@@ -6,6 +6,7 @@ import Image from "next/image"
 import { useTheme } from "next-themes"
 import {
   ChevronsUpDown,
+  Home,
   LogOut,
   Mail,
   Settings,
@@ -33,11 +34,13 @@ import { toast } from "sonner"
 
 export function NavUser({
   user,
+  onGoToDashboard,
 }: {
   user: {
     name: string
     email: string
   }
+  onGoToDashboard?: () => void
 }) {
   const { isMobile } = useSidebar()
   const { logout } = useAuth()
@@ -98,26 +101,41 @@ export function NavUser({
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
-              <div className="h-8 w-auto flex items-center flex-1">
-                {mounted && (
-                  <Image
-                    src={logoSrc}
-                    alt="Lolo AI"
-                    width={80}
-                    height={24}
-                    className="h-6 w-auto"
-                  />
-                )}
-              </div>
-              <ChevronsUpDown className="ml-auto size-4" />
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
+        <div className="flex items-center gap-2 w-full">
+          <SidebarMenuButton
+            onClick={() => {
+              if (onGoToDashboard) {
+                onGoToDashboard();
+              } else {
+                router.push('/dashboard');
+              }
+            }}
+            className="shrink-0 w-10 h-10 p-0 flex items-center justify-center hover:bg-sidebar-accent"
+            title="Go to Dashboard"
+            asChild={false}
+          >
+            <Home className="size-5" />
+          </SidebarMenuButton>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <SidebarMenuButton
+                size="lg"
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground flex-1"
+              >
+                <div className="h-8 w-auto flex items-center flex-1">
+                  {mounted && (
+                    <Image
+                      src={logoSrc}
+                      alt="Lolo AI"
+                      width={80}
+                      height={24}
+                      className="h-6 w-auto"
+                    />
+                  )}
+                </div>
+                <ChevronsUpDown className="ml-auto size-4" />
+              </SidebarMenuButton>
+            </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
             side={isMobile ? "bottom" : "right"}
@@ -168,6 +186,7 @@ export function NavUser({
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </SidebarMenuItem>
     </SidebarMenu>
   )

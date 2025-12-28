@@ -49,6 +49,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onThreadCreated: (thread: Thread) => void;
   onInboxMessageSelect: (message: InboxMessage) => void;
   onOfferSelect: (offer: TrackedOffer) => void;
+  onGoToDashboard?: () => void;
 }
 
 export function AppSidebar({
@@ -62,6 +63,7 @@ export function AppSidebar({
   onThreadCreated,
   onInboxMessageSelect,
   onOfferSelect,
+  onGoToDashboard,
   ...props
 }: AppSidebarProps) {
   const { user } = useAuth();
@@ -120,10 +122,13 @@ export function AppSidebar({
       <Sidebar {...props}>
 
         <SidebarHeader className="border-sidebar-border h-16 border-b">
-          <NavUser user={{
-            name: user?.email?.split('@')[0] || 'User',
-            email: user?.email || ''
-          }} />
+          <NavUser 
+            user={{
+              name: user?.email?.split('@')[0] || 'User',
+              email: user?.email || ''
+            }}
+            onGoToDashboard={onGoToDashboard}
+          />
         </SidebarHeader>
         <SidebarContent>
 
