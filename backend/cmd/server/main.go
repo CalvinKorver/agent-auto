@@ -184,6 +184,7 @@ func main() {
 		r.Route("/messages", func(r chi.Router) {
 			r.Use(middleware.AuthMiddleware(authService))
 			r.Post("/{messageId}/reply-via-gmail", messageHandler.ReplyViaGmail)
+			r.Post("/{messageId}/draft", messageHandler.CreateDraftViaGmail)
 		})
 
 		// Webhook routes (public - no auth)

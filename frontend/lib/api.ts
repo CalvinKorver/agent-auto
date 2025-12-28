@@ -244,4 +244,8 @@ export const gmailAPI = {
   replyViaGmail: async (messageId: string, content: string): Promise<void> => {
     await api.post(`/messages/${messageId}/reply-via-gmail`, { content });
   },
+
+  createDraft: async (messageId: string, content: string): Promise<void> => {
+    await api.post(`/messages/${messageId}/draft`, { content });
+  },
 };

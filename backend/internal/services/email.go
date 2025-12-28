@@ -176,3 +176,35 @@ func (s *EmailService) ReplyViaGmail(userID uuid.UUID, inboxMessageID uuid.UUID,
 		message.ExternalMessageID, // In-Reply-To header
 	)
 }
+
+// CreateDraftViaGmail creates a threaded draft from user's Gmail
+// This is called when user clicks "Draft" on an AI-drafted response
+func (s *EmailService) CreateDraftViaGmail(userID uuid.UUID, inboxMessageID uuid.UUID, replyContent string) error {
+	// 1. Get original inbox message from DB by ID
+	var message models.Message
+	if err := s.db.First(&message, inboxMessageID).Error; err != nil {
+		return fmt.Errorf("message not found: %w", err)
+	}
+
+	// 2. Validate message has email metadata
+	if message.ExternalMessageID == "" || message.SenderEmail == "" {
+		return fmt.Errorf("message was not received via email")
+	}
+
+	fmt.Printf("Sender email: %s", message.SenderEmail)
+
+	// 3. Build reply subject
+	replySubject := message.Subject
+	if !strings.HasPrefix(replySubject, "Re:") {
+		replySubject = "Re: " + replySubject
+	}
+
+	// 4. Create draft via Gmail
+	return s.gmailService.CreateDraft(
+		userID,
+		message.SenderEmail,      // to
+		replySubject,             // subject
+		replyContent,             // body (from AI draft)
+		message.ExternalMessageID, // In-Reply-To header
+	)
+}
