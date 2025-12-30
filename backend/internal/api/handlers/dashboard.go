@@ -197,3 +197,4 @@ func (h *DashboardHandler) fetchOffers(userID uuid.UUID) ([]models.TrackedOffer,
 	return offers, nil
 }
 
+

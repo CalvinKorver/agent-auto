@@ -71,9 +71,12 @@ func (s *MessageService) CreateUserMessage(threadID, userID uuid.UUID, content s
 		return nil, nil, fmt.Errorf("database error: %w", err)
 	}
 
-	// Get user preferences for context
+	// Get user preferences for context with relationships
 	var prefs models.UserPreferences
-	if err := s.db.Where("user_id = ?", userID).First(&prefs).Error; err != nil {
+	if err := s.db.Where("user_id = ?", userID).
+		Preload("Make").
+		Preload("Model").
+		First(&prefs).Error; err != nil {
 		return nil, nil, fmt.Errorf("failed to get user preferences: %w", err)
 	}
 
@@ -95,10 +98,20 @@ func (s *MessageService) CreateUserMessage(threadID, userID uuid.UUID, content s
 		Preload("Thread").
 		Find(&trackedOffers)
 
+	// Extract make and model names from relationships
+	makeName := ""
+	modelName := ""
+	if prefs.Make != nil {
+		makeName = prefs.Make.Name
+	}
+	if prefs.Model != nil {
+		modelName = prefs.Model.Name
+	}
+
 	// Log context information
 	fmt.Printf("\n========== CLAUDE CONTEXT DEBUG ==========\n")
 	fmt.Printf("User Message: %s\n", content)
-	fmt.Printf("User Preferences: %d %s %s\n", prefs.Year, prefs.Make, prefs.Model)
+	fmt.Printf("User Preferences: %d %s %s\n", prefs.Year, makeName, modelName)
 	fmt.Printf("Seller Name: %s\n", thread.SellerName)
 	fmt.Printf("Message History Count: %d\n", len(recentMessages))
 	if len(recentMessages) > 0 {
@@ -135,8 +148,8 @@ func (s *MessageService) CreateUserMessage(threadID, userID uuid.UUID, content s
 	agentContent, err := s.claudeService.GenerateNegotiationResponse(
 		content,
 		prefs.Year,
-		prefs.Make,
-		prefs.Model,
+		makeName,
+		modelName,
 		thread.SellerName,
 		recentMessages,
 		trackedOffers,

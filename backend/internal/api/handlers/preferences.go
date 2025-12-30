@@ -6,6 +6,8 @@ import (
 
 	"carbuyer/internal/api/middleware"
 	"carbuyer/internal/services"
+
+	"github.com/google/uuid"
 )
 
 type PreferencesHandler struct {
@@ -20,9 +22,10 @@ func NewPreferencesHandler(prefsService *services.PreferencesService) *Preferenc
 
 // PreferencesRequest represents the request body for creating/updating preferences
 type PreferencesRequest struct {
-	Year  int    `json:"year"`
-	Make  string `json:"make"`
-	Model string `json:"model"`
+	Year   int    `json:"year"`
+	Make   string `json:"make"`
+	Model  string `json:"model"`
+	TrimID string `json:"trimId,omitempty"` // Optional: empty string or null means "Unspecified"
 }
 
 // PreferencesFullResponse represents preferences in API responses
@@ -30,6 +33,8 @@ type PreferencesFullResponse struct {
 	Year      int    `json:"year"`
 	Make      string `json:"make"`
 	Model     string `json:"model"`
+	Trim      string `json:"trim,omitempty"` // Trim name, empty if unspecified
+	TrimID    string `json:"trimId,omitempty"` // Trim ID, empty if unspecified
 	CreatedAt string `json:"createdAt"`
 }
 
@@ -58,13 +63,30 @@ func (h *PreferencesHandler) GetPreferences(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Return response
+	// Return response with make/model/trim names from relationships
+	makeName := ""
+	modelName := ""
+	trimName := ""
+	trimIDStr := ""
+	if prefs.Make != nil {
+		makeName = prefs.Make.Name
+	}
+	if prefs.Model != nil {
+		modelName = prefs.Model.Name
+	}
+	if prefs.Trim != nil {
+		trimName = prefs.Trim.TrimName
+		trimIDStr = prefs.Trim.ID.String()
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(PreferencesFullResponse{
 		Year:      prefs.Year,
-		Make:      prefs.Make,
-		Model:     prefs.Model,
+		Make:      makeName,
+		Model:     modelName,
+		Trim:      trimName,
+		TrimID:    trimIDStr,
 		CreatedAt: prefs.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	})
 }
@@ -89,8 +111,21 @@ func (h *PreferencesHandler) CreatePreferences(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Parse trimID (optional - empty string or null means "Unspecified")
+	var trimID *uuid.UUID
+	if req.TrimID != "" {
+		parsedTrimID, err := uuid.Parse(req.TrimID)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid trimId format"})
+			return
+		}
+		trimID = &parsedTrimID
+	}
+
 	// Create preferences
-	prefs, err := h.prefsService.CreateUserPreferences(userID, req.Year, req.Make, req.Model)
+	prefs, err := h.prefsService.CreateUserPreferences(userID, req.Year, req.Make, req.Model, trimID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		if err.Error() == "preferences already exist for this user" {
@@ -102,13 +137,30 @@ func (h *PreferencesHandler) CreatePreferences(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Return response
+	// Return response with make/model/trim names from relationships
+	makeName := ""
+	modelName := ""
+	trimName := ""
+	trimIDStr := ""
+	if prefs.Make != nil {
+		makeName = prefs.Make.Name
+	}
+	if prefs.Model != nil {
+		modelName = prefs.Model.Name
+	}
+	if prefs.Trim != nil {
+		trimName = prefs.Trim.TrimName
+		trimIDStr = prefs.Trim.ID.String()
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(PreferencesFullResponse{
 		Year:      prefs.Year,
-		Make:      prefs.Make,
-		Model:     prefs.Model,
+		Make:      makeName,
+		Model:     modelName,
+		Trim:      trimName,
+		TrimID:    trimIDStr,
 		CreatedAt: prefs.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	})
 }
@@ -133,8 +185,21 @@ func (h *PreferencesHandler) UpdatePreferences(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Parse trimID (optional - empty string or null means "Unspecified")
+	var trimID *uuid.UUID
+	if req.TrimID != "" {
+		parsedTrimID, err := uuid.Parse(req.TrimID)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid trimId format"})
+			return
+		}
+		trimID = &parsedTrimID
+	}
+
 	// Update preferences
-	prefs, err := h.prefsService.UpdateUserPreferences(userID, req.Year, req.Make, req.Model)
+	prefs, err := h.prefsService.UpdateUserPreferences(userID, req.Year, req.Make, req.Model, trimID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		if err.Error() == "preferences not found" {
@@ -146,13 +211,30 @@ func (h *PreferencesHandler) UpdatePreferences(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Return response
+	// Return response with make/model/trim names from relationships
+	makeName := ""
+	modelName := ""
+	trimName := ""
+	trimIDStr := ""
+	if prefs.Make != nil {
+		makeName = prefs.Make.Name
+	}
+	if prefs.Model != nil {
+		modelName = prefs.Model.Name
+	}
+	if prefs.Trim != nil {
+		trimName = prefs.Trim.TrimName
+		trimIDStr = prefs.Trim.ID.String()
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(PreferencesFullResponse{
 		Year:      prefs.Year,
-		Make:      prefs.Make,
-		Model:     prefs.Model,
+		Make:      makeName,
+		Model:     modelName,
+		Trim:      trimName,
+		TrimID:    trimIDStr,
 		CreatedAt: prefs.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	})
 }

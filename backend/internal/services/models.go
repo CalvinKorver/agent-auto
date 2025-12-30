@@ -1,79 +1,41 @@
 package services
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
-	"log"
-	"net/http"
-	"sync"
-	"time"
+
+	"carbuyer/internal/db/models"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
-// ModelsService handles fetching and caching vehicle makes/models from auto.dev API
+// ModelsService handles fetching vehicle makes/models from database
 type ModelsService struct {
-	mu          sync.RWMutex
-	cachedData  map[string][]string
-	lastFetched time.Time
-	apiURL      string
+	db *gorm.DB
 }
 
 // NewModelsService creates a new models service
-func NewModelsService() *ModelsService {
+func NewModelsService(db *gorm.DB) *ModelsService {
 	return &ModelsService{
-		cachedData: make(map[string][]string),
-		apiURL:     "https://auto.dev/api/models",
+		db: db,
 	}
 }
 
-// FetchModels fetches models from the auto.dev API
-func (s *ModelsService) FetchModels() error {
-	log.Println("Fetching vehicle models from auto.dev API...")
-
-	resp, err := http.Get(s.apiURL)
-	if err != nil {
-		return fmt.Errorf("failed to fetch models: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	var data map[string][]string
-	if err := json.Unmarshal(body, &data); err != nil {
-		return fmt.Errorf("failed to parse JSON: %w", err)
-	}
-
-	// Update cache with write lock
-	s.mu.Lock()
-	s.cachedData = data
-	s.lastFetched = time.Now()
-	s.mu.Unlock()
-
-	log.Printf("Successfully fetched and cached vehicle models (last fetched: %s)", s.lastFetched.Format(time.RFC3339))
-	return nil
-}
-
-// GetModels returns the cached models data
+// GetModels returns all makes and their models in the format expected by the frontend
 func (s *ModelsService) GetModels() (map[string][]string, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	if len(s.cachedData) == 0 {
-		return nil, fmt.Errorf("models data not yet loaded")
+	var makes []models.Make
+	if err := s.db.Preload("Models").Order("name ASC").Find(&makes).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch makes: %w", err)
 	}
 
-	// Create a copy to avoid race conditions
 	result := make(map[string][]string)
-	for k, v := range s.cachedData {
-		result[k] = make([]string, len(v))
-		copy(result[k], v)
+	for _, makeRecord := range makes {
+		modelNames := make([]string, 0, len(makeRecord.Models))
+		for _, model := range makeRecord.Models {
+			modelNames = append(modelNames, model.Name)
+		}
+		result[makeRecord.Name] = modelNames
 	}
 
 	return result, nil
@@ -81,68 +43,68 @@ func (s *ModelsService) GetModels() (map[string][]string, error) {
 
 // GetMakes returns a list of all makes
 func (s *ModelsService) GetMakes() ([]string, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	if len(s.cachedData) == 0 {
-		return nil, fmt.Errorf("models data not yet loaded")
+	var makes []models.Make
+	if err := s.db.Order("name ASC").Find(&makes).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch makes: %w", err)
 	}
 
-	makes := make([]string, 0, len(s.cachedData))
-	for make := range s.cachedData {
-		makes = append(makes, make)
+	makeNames := make([]string, 0, len(makes))
+	for _, make := range makes {
+		makeNames = append(makeNames, make.Name)
 	}
 
-	return makes, nil
+	return makeNames, nil
 }
 
 // GetModelsForMake returns the models for a specific make
-func (s *ModelsService) GetModelsForMake(make string) ([]string, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	if len(s.cachedData) == 0 {
-		return nil, fmt.Errorf("models data not yet loaded")
-	}
-
-	models, exists := s.cachedData[make]
-	if !exists {
-		return nil, fmt.Errorf("make not found: %s", make)
-	}
-
-	// Return a copy
-	result := make([]string, len(models))
-	copy(result, models)
-	return result, nil
-}
-
-// StartDailyFetch starts a background goroutine that fetches models once per day
-func (s *ModelsService) StartDailyFetch() {
-	// Fetch immediately on startup
-	if err := s.FetchModels(); err != nil {
-		log.Printf("Warning: Failed to fetch models on startup: %v", err)
-	}
-
-	// Then fetch once per day
-	go func() {
-		ticker := time.NewTicker(24 * time.Hour)
-		defer ticker.Stop()
-
-		for range ticker.C {
-			// Recover from panics to keep the goroutine running
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						log.Printf("Panic in daily models fetch: %v", r)
-					}
-				}()
-
-				if err := s.FetchModels(); err != nil {
-					log.Printf("Error fetching models in daily update: %v", err)
-					// Continue serving cached data if available
-				}
-			}()
+func (s *ModelsService) GetModelsForMake(makeName string) ([]string, error) {
+	var makeRecord models.Make
+	if err := s.db.Where("name = ?", makeName).Preload("Models").First(&makeRecord).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("make not found: %s", makeName)
 		}
-	}()
+		return nil, fmt.Errorf("failed to fetch make: %w", err)
+	}
+
+	modelNames := make([]string, 0, len(makeRecord.Models))
+	for _, model := range makeRecord.Models {
+		modelNames = append(modelNames, model.Name)
+	}
+
+	return modelNames, nil
 }
 
+// GetMakeByName looks up a make by name and returns the Make model
+func (s *ModelsService) GetMakeByName(name string) (*models.Make, error) {
+	var makeRecord models.Make
+	if err := s.db.Where("name = ?", name).First(&makeRecord).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("make not found: %s", name)
+		}
+		return nil, fmt.Errorf("failed to lookup make: %w", err)
+	}
+	return &makeRecord, nil
+}
+
+// GetModelByName looks up a model by make ID and model name
+func (s *ModelsService) GetModelByName(makeID uuid.UUID, name string) (*models.Model, error) {
+	var model models.Model
+	if err := s.db.Where("make_id = ? AND name = ?", makeID, name).First(&model).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("model not found: %s for make %s", name, makeID)
+		}
+		return nil, fmt.Errorf("failed to lookup model: %w", err)
+	}
+	return &model, nil
+}
+
+// GetTrimsForModel returns all trims for a specific model and year
+func (s *ModelsService) GetTrimsForModel(modelID uuid.UUID, year int) ([]models.VehicleTrim, error) {
+	var trims []models.VehicleTrim
+	if err := s.db.Where("model_id = ? AND year = ?", modelID, year).
+		Order("trim_name ASC").
+		Find(&trims).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch trims: %w", err)
+	}
+	return trims, nil
+}

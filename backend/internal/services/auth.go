@@ -156,7 +156,9 @@ func (s *AuthService) ValidateToken(tokenString string) (uuid.UUID, error) {
 // GetUserByID retrieves a user by their ID
 func (s *AuthService) GetUserByID(userID uuid.UUID) (*models.User, error) {
 	var user models.User
-	if err := s.db.Preload("Preferences").Where("id = ?", userID).First(&user).Error; err != nil {
+	if err := s.db.Preload("Preferences.Make").
+		Preload("Preferences.Model").
+		Where("id = ?", userID).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("user not found")
 		}

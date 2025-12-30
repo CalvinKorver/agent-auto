@@ -35,6 +35,8 @@ export interface UserPreferences {
   year: number;
   make: string;
   model: string;
+  trim?: string; // Trim name, empty if unspecified
+  trimId?: string; // Trim ID, empty if unspecified
 }
 
 export interface Thread {
@@ -121,6 +123,11 @@ export interface VehicleModelsResponse {
   [make: string]: string[];
 }
 
+export interface Trim {
+  id: string;
+  trimName: string;
+}
+
 // Auth API
 export const authAPI = {
   register: async (email: string, password: string): Promise<AuthResponse> => {
@@ -150,13 +157,23 @@ export const preferencesAPI = {
     return response.data;
   },
 
-  create: async (year: number, make: string, model: string): Promise<UserPreferences> => {
-    const response = await api.post<UserPreferences>('/preferences', { year, make, model });
+  create: async (year: number, make: string, model: string, trimId?: string | null): Promise<UserPreferences> => {
+    const response = await api.post<UserPreferences>('/preferences', { 
+      year, 
+      make, 
+      model,
+      trimId: trimId || null
+    });
     return response.data;
   },
 
-  update: async (year: number, make: string, model: string): Promise<UserPreferences> => {
-    const response = await api.put<UserPreferences>('/preferences', { year, make, model });
+  update: async (year: number, make: string, model: string, trimId?: string | null): Promise<UserPreferences> => {
+    const response = await api.put<UserPreferences>('/preferences', { 
+      year, 
+      make, 
+      model,
+      trimId: trimId || null
+    });
     return response.data;
   },
 };
@@ -276,6 +293,16 @@ export const dashboardAPI = {
 export const modelsAPI = {
   getModels: async (): Promise<VehicleModelsResponse> => {
     const response = await api.get<VehicleModelsResponse>('/models');
+    return response.data;
+  },
+};
+
+// Trims API
+export const trimsAPI = {
+  getTrims: async (make: string, model: string, year: number): Promise<Trim[]> => {
+    const response = await api.get<Trim[]>('/trims', {
+      params: { make, model, year },
+    });
     return response.data;
   },
 };

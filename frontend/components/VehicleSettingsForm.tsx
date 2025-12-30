@@ -8,14 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Field, FieldLabel, FieldError } from '@/components/ui/field';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { VEHICLE_MAKES } from '@/lib/data/vehicleData';
-import { preferencesAPI } from '@/lib/api';
+import { preferencesAPI, modelsAPI, VehicleModelsResponse, trimsAPI, Trim } from '@/lib/api';
 import { toast } from 'sonner';
 
 const vehicleSchema = z.object({
   make: z.string().min(1, 'Make is required'),
   model: z.string().min(1, 'Model is required'),
   year: z.number().min(1960).max(2026),
+  trim: z.string().min(1, 'Trim is required'),
 });
 
 type VehicleFormData = z.infer<typeof vehicleSchema>;
@@ -29,12 +29,20 @@ const VEHICLE_YEARS = Array.from(
 export default function VehicleSettingsForm() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [vehicleModels, setVehicleModels] = useState<VehicleModelsResponse>({});
+  const [makes, setMakes] = useState<string[]>([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(true);
+  const [modelsError, setModelsError] = useState<string | null>(null);
+  const [trims, setTrims] = useState<Trim[]>([]);
+  const [isLoadingTrims, setIsLoadingTrims] = useState(false);
 
   const {
     register,
     handleSubmit,
     control,
     reset,
+    resetField,
+    watch,
     formState: { errors },
   } = useForm<VehicleFormData>({
     resolver: zodResolver(vehicleSchema),
@@ -42,8 +50,78 @@ export default function VehicleSettingsForm() {
       make: '',
       model: '',
       year: 2024,
+      trim: '',
     },
   });
+
+  const makeValue = watch('make');
+  const modelValue = watch('model');
+  const yearValue = watch('year');
+  const trimValue = watch('trim');
+
+  // Reset model when make changes if current model is not available for new make
+  useEffect(() => {
+    // Only run if we have models data loaded and both make and model are set
+    if (Object.keys(vehicleModels).length > 0 && makeValue && modelValue) {
+      const availableModels = vehicleModels[makeValue] || [];
+      if (availableModels.length > 0 && !availableModels.includes(modelValue)) {
+        reset({
+          make: makeValue,
+          model: '',
+          year: yearValue,
+          trim: '',
+        }, { keepDefaultValues: false });
+      }
+    }
+  }, [makeValue, vehicleModels, modelValue, yearValue, reset]);
+
+  // Fetch trims when make, model, and year are all selected
+  useEffect(() => {
+    if (makeValue && modelValue && yearValue) {
+      const fetchTrims = async () => {
+        try {
+          setIsLoadingTrims(true);
+          const fetchedTrims = await trimsAPI.getTrims(makeValue, modelValue, yearValue);
+          setTrims(fetchedTrims);
+        } catch (error) {
+          console.error('Failed to fetch trims:', error);
+          setTrims([]);
+        } finally {
+          setIsLoadingTrims(false);
+        }
+      };
+      fetchTrims();
+    } else {
+      // Reset trim when make, model, or year changes
+      resetField('trim');
+      setTrims([]);
+    }
+  }, [makeValue, modelValue, yearValue, resetField]);
+
+  // Fetch vehicle models on mount
+  useEffect(() => {
+    const fetchModels = async () => {
+      try {
+        setIsLoadingModels(true);
+        setModelsError(null);
+        const data = await modelsAPI.getModels();
+        setVehicleModels(data);
+        // Extract and sort makes
+        const makesList = Object.keys(data).sort();
+        setMakes(makesList);
+      } catch (error: any) {
+        console.error('Failed to fetch vehicle models:', error);
+        const errorMessage = error.response?.data?.error || error.message || 'Unknown error';
+        setModelsError(`Failed to load vehicle makes: ${errorMessage}. Please refresh the page.`);
+        // Fallback to hardcoded makes if API fails
+        setMakes(['Acura', 'Audi', 'BMW', 'Buick', 'Cadillac', 'Chevrolet', 'Chrysler', 'Dodge', 'Ford', 'Genesis', 'GMC', 'Honda', 'Hyundai', 'Infiniti', 'Jaguar', 'Jeep', 'Kia', 'Land Rover', 'Lexus', 'Lincoln', 'Mazda', 'Mercedes-Benz', 'Mini', 'Nissan', 'Porsche', 'Ram', 'Subaru', 'Tesla', 'Toyota', 'Volkswagen', 'Volvo']);
+      } finally {
+        setIsLoadingModels(false);
+      }
+    };
+
+    fetchModels();
+  }, []);
 
   // Load existing preferences
   useEffect(() => {
@@ -54,7 +132,21 @@ export default function VehicleSettingsForm() {
           make: prefs.make,
           model: prefs.model,
           year: prefs.year,
+          trim: prefs.trimId || 'unspecified', // Use 'unspecified' if no trimId
         });
+        // If we have make/model/year, fetch trims to populate the dropdown
+        if (prefs.make && prefs.model && prefs.year) {
+          try {
+            setIsLoadingTrims(true);
+            const fetchedTrims = await trimsAPI.getTrims(prefs.make, prefs.model, prefs.year);
+            setTrims(fetchedTrims);
+          } catch (error) {
+            console.error('Failed to fetch trims:', error);
+            setTrims([]);
+          } finally {
+            setIsLoadingTrims(false);
+          }
+        }
       } catch (error: any) {
         // If preferences don't exist, that's okay - form will start empty
         if (error.response?.status !== 404) {
@@ -68,17 +160,23 @@ export default function VehicleSettingsForm() {
     loadPreferences();
   }, [reset]);
 
+  // Get available models for selected make
+  const availableModels = makeValue ? vehicleModels[makeValue] || [] : [];
+
   const onSubmit = async (data: VehicleFormData) => {
     setLoading(true);
     try {
-      await preferencesAPI.update(data.year, data.make, data.model);
+      // Convert trim value to trimId (empty string or "unspecified" means "Unspecified")
+      const trimId = data.trim === '' || data.trim === 'unspecified' ? null : data.trim;
+      await preferencesAPI.update(data.year, data.make, data.model, trimId);
       toast.success('Vehicle settings saved successfully');
     } catch (error: any) {
       console.error('Failed to save preferences:', error);
       if (error.response?.status === 404) {
         // If preferences don't exist, create them instead
         try {
-          await preferencesAPI.create(data.year, data.make, data.model);
+          const trimId = data.trim === '' || data.trim === 'unspecified' ? null : data.trim;
+          await preferencesAPI.create(data.year, data.make, data.model, trimId);
           toast.success('Vehicle settings saved successfully');
         } catch (createError) {
           console.error('Failed to create preferences:', createError);
@@ -97,7 +195,9 @@ export default function VehicleSettingsForm() {
       make: '',
       model: '',
       year: 2024,
+      trim: '',
     });
+    setTrims([]);
     toast.info('Form cleared');
   };
 
@@ -118,12 +218,12 @@ export default function VehicleSettingsForm() {
             name="make"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={field.onChange} value={field.value}>
+              <Select onValueChange={field.onChange} value={field.value} disabled={isLoadingModels}>
                 <SelectTrigger id="make" className="w-full">
-                  <SelectValue placeholder="Select a make..." />
+                  <SelectValue placeholder={isLoadingModels ? 'Loading makes...' : 'Select a make...'} />
                 </SelectTrigger>
                 <SelectContent>
-                  {VEHICLE_MAKES.map((make) => (
+                  {makes.map((make) => (
                     <SelectItem key={make} value={make}>
                       {make}
                     </SelectItem>
@@ -132,17 +232,39 @@ export default function VehicleSettingsForm() {
               </Select>
             )}
           />
+          {modelsError && <p className="text-sm text-destructive mt-1">{modelsError}</p>}
           <FieldError>{errors.make?.message}</FieldError>
         </Field>
 
         <Field>
           <FieldLabel htmlFor="model">Model</FieldLabel>
-          <Input
-            id="model"
-            type="text"
-            {...register('model')}
-            placeholder="e.g., CX-90, Camry, Model 3"
-          />
+          {availableModels.length > 0 ? (
+            <Controller
+              name="model"
+              control={control}
+              render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger id="model" className="w-full">
+                    <SelectValue placeholder="Select a model..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableModels.map((model) => (
+                      <SelectItem key={model} value={model}>
+                        {model}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          ) : (
+            <Input
+              id="model"
+              type="text"
+              {...register('model')}
+              placeholder="e.g., CX-90, Camry, Model 3"
+            />
+          )}
           <FieldError>{errors.model?.message}</FieldError>
         </Field>
 
@@ -170,6 +292,40 @@ export default function VehicleSettingsForm() {
             )}
           />
           <FieldError>{errors.year?.message}</FieldError>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="trim">Trim</FieldLabel>
+          <Controller
+            name="trim"
+            control={control}
+            render={({ field }) => (
+              <Select
+                onValueChange={field.onChange}
+                value={field.value}
+                disabled={!makeValue || !modelValue || !yearValue || isLoadingTrims}
+              >
+                <SelectTrigger id="trim" className="w-full">
+                  <SelectValue placeholder={
+                    !makeValue || !modelValue || !yearValue 
+                      ? 'Select make, model, and year first' 
+                      : isLoadingTrims 
+                        ? 'Loading trims...' 
+                        : 'Choose a trim...'
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unspecified">Unspecified</SelectItem>
+                  {trims.map((trim) => (
+                    <SelectItem key={trim.id} value={trim.id}>
+                      {trim.trimName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          <FieldError>{errors.trim?.message}</FieldError>
         </Field>
       </div>
 

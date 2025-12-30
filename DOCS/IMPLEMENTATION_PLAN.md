@@ -160,7 +160,7 @@
 
 **Design:**
 - Top navigation bar spans full width above sidebar + main panel
-- Left side: "Lolo AI" text + car icon logo
+- Left side: "Otto" text + car icon logo
 - Right side: User icon (with logout menu) + Dollar sign icon (to view offers)
 - Sidebar no longer needs title section (removed)
 

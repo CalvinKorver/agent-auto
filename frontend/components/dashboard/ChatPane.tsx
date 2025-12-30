@@ -38,9 +38,10 @@ interface ChatPaneProps {
   offers?: TrackedOffer[];
   onInboxMessageAssigned?: () => void;
   onNavigateToThread?: (threadId: string) => void;
+  onOfferDeleted?: () => void;
 }
 
-export default function ChatPane({ selectedThreadId, selectedInboxMessage, threads = [], offers = [], onInboxMessageAssigned, onNavigateToThread }: ChatPaneProps) {
+export default function ChatPane({ selectedThreadId, selectedInboxMessage, threads = [], offers = [], onInboxMessageAssigned, onNavigateToThread, onOfferDeleted }: ChatPaneProps) {
   const { user } = useAuth();
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
@@ -399,6 +400,7 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
         offers={offers}
         threads={threads}
         onNavigateToThread={onNavigateToThread}
+        onOfferDeleted={onOfferDeleted}
       />
     );
   }

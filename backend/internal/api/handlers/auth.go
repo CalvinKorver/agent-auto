@@ -182,10 +182,18 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 
 	// Add preferences if they exist
 	if user.Preferences != nil {
+		makeName := ""
+		modelName := ""
+		if user.Preferences.Make != nil {
+			makeName = user.Preferences.Make.Name
+		}
+		if user.Preferences.Model != nil {
+			modelName = user.Preferences.Model.Name
+		}
 		userResp.Preferences = &PreferencesResponse{
 			Year:  user.Preferences.Year,
-			Make:  user.Preferences.Make,
-			Model: user.Preferences.Model,
+			Make:  makeName,
+			Model: modelName,
 		}
 	}
 

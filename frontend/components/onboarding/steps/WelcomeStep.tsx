@@ -9,12 +9,12 @@ interface WelcomeStepProps {
 export default function WelcomeStep({ onNext, isActive }: WelcomeStepProps) {
   return (
     <div className="space-y-4 animate-in fade-in duration-500">
-      {/* Lolo AI's message - no bubble, just text like ChatPane */}
+      {/* Otto's message - no bubble, just text like ChatPane */}
       <div className="flex items-start gap-3">
         <PollyAvatar />
-        <div className="space-y-1 text-md leading-relaxed text-foreground">
-          <div className="font-semibold text-md">Welcome to Lolo AI</div>
-          <p className="text-base">
+        <div className="space-y-1 text-sm leading-relaxed text-foreground">
+          <div className="font-semibold text-base">Welcome to Otto</div>
+          <p className="text-sm">
             We&apos;re here to guide you through your car-buying journey. Our AI agent handles the
             &quot;haggling&quot; so you can focus on the driving.
           </p>

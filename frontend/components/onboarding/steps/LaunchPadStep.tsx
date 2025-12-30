@@ -7,6 +7,7 @@ interface LaunchPadStepProps {
     make: string;
     model: string;
     year: number;
+    trimName?: string | null;
   };
   onComplete: () => Promise<void>;
 }
@@ -29,18 +30,21 @@ export default function LaunchPadStep({ vehicleData, onComplete }: LaunchPadStep
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Lolo AI's message - no bubble, just text like ChatPane */}
+      {/* Otto's message - no bubble, just text like ChatPane */}
       <div className="flex items-start gap-1">
         <PollyAvatar />
-        <div className="space-y-2 text-lg leading-relaxed text-foreground">
-          <div className="font-semibold text-xl">Ready to disrupt the status quo?</div>
-          <div>
+        <div className="space-y-2 text-sm leading-relaxed text-foreground">
+          <div className="font-semibold text-base">Ready to disrupt the status quo?</div>
+          <div className="text-sm">
             Our AI is ready to help you save an average of $1,280 or more while shielding you from &quot;Communication Fatigue&quot;.
           </div>
           <div className="bg-muted/50 rounded-md p-3 mt-3">
             <div className="text-xs font-medium text-muted-foreground mb-1">Your Target Vehicle:</div>
-            <div className="font-semibold">
+            <div className="font-semibold text-sm">
               {vehicleData.year} {vehicleData.make} {vehicleData.model}
+              {vehicleData.trimName && vehicleData.trimName !== 'Unspecified' && (
+                <span className="font-normal"> {vehicleData.trimName}</span>
+              )}
             </div>
           </div>
           <div className="text-sm text-muted-foreground italic mt-2">

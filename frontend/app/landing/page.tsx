@@ -8,17 +8,17 @@ import { Button } from '@/components/ui/button';
 import { Car, MessageSquare, Bell, TrendingUp } from 'lucide-react';
 
 export default function LandingPage() {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Use dark color logo in light mode, original in dark mode
-  const logoSrc = mounted && theme === 'light' 
-    ? '/lolo-logo-dark-color-v1.png' 
-    : '/lolo-logo-v2.png';
+  // Use dark logo in light mode, light logo in dark mode
+  const logoSrc = mounted && resolvedTheme === 'light' 
+    ? '/logo-dark-v2.png' 
+    : '/logo-light-v2.png';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
@@ -28,7 +28,7 @@ export default function LandingPage() {
           <div className="flex items-center">
             <Image
               src={logoSrc}
-              alt="Lolo AI"
+              alt="Otto"
               width={200}
               height={60}
               className="h-12 w-auto"
@@ -47,7 +47,7 @@ export default function LandingPage() {
 
       {/* Hero Content */}
       <section className="container mx-auto px-4 py-20 text-center">
-        <h1 className="text-5xl font-bold tracking-tight mb-6 max-w-3xl mx-auto">
+        <h1 className="text-5xl font-bold tracking-tight mb-6 max-w-3xl mx-auto text-foreground">
           Your AI-Powered Car Buying Assistant
         </h1>
         <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
@@ -66,7 +66,7 @@ export default function LandingPage() {
 
       {/* Features Section */}
       <section id="features" className="container mx-auto px-4 py-20">
-        <h2 className="text-3xl font-bold text-center mb-12">How It Works</h2>
+        <h2 className="text-3xl font-bold text-center mb-12 text-foreground">How It Works</h2>
         <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
           <FeatureCard
             icon={<MessageSquare className="size-10 text-primary" />}
@@ -81,7 +81,7 @@ export default function LandingPage() {
           <FeatureCard
             icon={<Bell className="size-10 text-primary" />}
             title="Track & Compare"
-            description="Manage all dealer conversations in one place. Compare offers side-by-side - Lolo will keep track of all offers."
+            description="Manage all dealer conversations in one place. Compare offers side-by-side - Otto will keep track of all offers."
           />
         </div>
       </section>
@@ -89,7 +89,7 @@ export default function LandingPage() {
       {/* Benefits Section */}
       <section className="bg-gray-100 dark:bg-gray-800 py-20">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">Why Choose AgentAuto?</h2>
+          <h2 className="text-3xl font-bold text-center mb-12 text-foreground">Why Choose AgentAuto?</h2>
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             <BenefitCard
               icon={<TrendingUp className="size-8 text-primary" />}
@@ -117,7 +117,7 @@ export default function LandingPage() {
 
       {/* CTA Section */}
       <section className="container mx-auto px-4 py-20 text-center">
-        <h2 className="text-4xl font-bold mb-6">Ready to Find Your Next Car?</h2>
+        <h2 className="text-4xl font-bold mb-6 text-foreground">Ready to Find Your Next Car?</h2>
         <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
           Join thousands of satisfied customers who found their perfect vehicle through AgentAuto.
         </p>
@@ -140,7 +140,7 @@ function FeatureCard({ icon, title, description }: { icon: React.ReactNode; titl
   return (
     <div className="text-center p-6">
       <div className="flex justify-center mb-4">{icon}</div>
-      <h3 className="text-xl font-semibold mb-3">{title}</h3>
+      <h3 className="text-xl font-semibold mb-3 text-foreground">{title}</h3>
       <p className="text-muted-foreground">{description}</p>
     </div>
   );
@@ -151,7 +151,7 @@ function BenefitCard({ icon, title, description }: { icon: React.ReactNode; titl
     <div className="flex gap-4 p-6 bg-white dark:bg-gray-900 rounded-lg shadow-sm">
       <div className="flex-shrink-0">{icon}</div>
       <div>
-        <h3 className="text-lg font-semibold mb-2">{title}</h3>
+        <h3 className="text-lg font-semibold mb-2 text-foreground">{title}</h3>
         <p className="text-muted-foreground">{description}</p>
       </div>
     </div>

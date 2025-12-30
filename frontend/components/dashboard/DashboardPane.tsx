@@ -1,10 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { TrackedOffer, Thread } from '@/lib/api';
-import { IconSearch, IconUpload, IconSettings } from '@tabler/icons-react';
+import { TrackedOffer, Thread, offerAPI } from '@/lib/api';
+import { IconSearch, IconUpload, IconSettings, IconTrash } from '@tabler/icons-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
+import { toast } from 'sonner';
 
 interface DashboardPaneProps {
   offers: TrackedOffer[];
@@ -36,8 +38,8 @@ function parsePriceFromOfferText(offerText: string): number | null {
   return null;
 }
 
-// Calculate Lolo Score (placeholder - based on price vs market average)
-function calculateLoloScore(price: number, marketAverage: number): { score: number; label: string; color: string } {
+// Calculate Otto Score (placeholder - based on price vs market average)
+function calculateOttoScore(price: number, marketAverage: number): { score: number; label: string; color: string } {
   const diff = marketAverage - price;
   const percentDiff = (diff / marketAverage) * 100;
 
@@ -135,13 +137,13 @@ export default function DashboardPane({ offers, threads, onNavigateToThread, onO
   // Process offers for comparison table
   const processedOffers = offers.map(offer => {
     const price = parsePriceFromOfferText(offer.offerText);
-    const loloScore = price ? calculateLoloScore(price, marketAverage) : null;
+    const ottoScore = price ? calculateOttoScore(price, marketAverage) : null;
     const gapToMarket = price ? price - targetFairPrice : null;
 
     return {
       ...offer,
       parsedPrice: price,
-      loloScore,
+      ottoScore,
       gapToMarket,
     };
   });
@@ -288,7 +290,7 @@ export default function DashboardPane({ offers, threads, onNavigateToThread, onO
                           Offer
                         </th>
                         <th className="px-4 py-3 text-left text-sm font-medium text-foreground">
-                          Lolo Score
+                          Otto Score
                         </th>
                         <th className="px-4 py-3 text-left text-sm font-medium text-foreground">
                           Gap to Market
@@ -325,21 +327,21 @@ export default function DashboardPane({ offers, threads, onNavigateToThread, onO
                               )}
                             </td>
                             <td className="px-4 py-3 text-sm">
-                              {offer.loloScore ? (
+                              {offer.ottoScore ? (
                                 <div className="flex items-center gap-2">
                                   <div
                                     className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-                                      offer.loloScore.score >= 80
+                                      offer.ottoScore.score >= 80
                                         ? 'bg-green-500/20 text-green-500'
-                                        : offer.loloScore.score >= 60
+                                        : offer.ottoScore.score >= 60
                                         ? 'bg-yellow-500/20 text-yellow-500'
                                         : 'bg-red-500/20 text-red-500'
                                     }`}
                                   >
-                                    {offer.loloScore.score}
+                                    {offer.ottoScore.score}
                                   </div>
-                                  <span className={offer.loloScore.color}>
-                                    ({offer.loloScore.label})
+                                  <span className={offer.ottoScore.color}>
+                                    ({offer.ottoScore.label})
                                   </span>
                                 </div>
                               ) : (

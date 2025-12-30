@@ -18,7 +18,7 @@ import (
 )
 
 func main() {
-	log.Println("Starting Lolo AI API Server...")
+	log.Println("Starting Otto API Server...")
 
 	// Load .env file
 	if err := godotenv.Load(); err != nil {
@@ -48,7 +48,8 @@ func main() {
 
 	// Initialize services
 	authService := services.NewAuthService(database.DB, cfg.JWTSecret, cfg.JWTExpirationHours, cfg.MailgunDomain)
-	preferencesService := services.NewPreferencesService(database.DB)
+	modelsService := services.NewModelsService(database.DB)
+	preferencesService := services.NewPreferencesService(database.DB, modelsService)
 	claudeService := services.NewClaudeService(cfg.AnthropicAPIKey)
 	threadService := services.NewThreadService(database.DB)
 	messageService := services.NewMessageService(database.DB, claudeService)
@@ -66,10 +67,6 @@ func main() {
 	}
 
 	emailService := services.NewEmailService(database.DB, cfg.MailgunAPIKey, cfg.MailgunDomain, gmailService)
-
-	// Initialize models service and start daily fetch
-	modelsService := services.NewModelsService()
-	modelsService.StartDailyFetch()
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService, gmailService)
@@ -127,7 +124,7 @@ func main() {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"message":"Lolo AI API","version":"1.0.0"}`))
+			w.Write([]byte(`{"message":"Otto API","version":"1.0.0"}`))
 		})
 
 		// Auth routes
@@ -208,6 +205,7 @@ func main() {
 
 		// Models route (public - no auth)
 		r.Get("/models", modelsHandler.GetModels)
+		r.Get("/trims", modelsHandler.GetTrims)
 	})
 
 	// OAuth callback route (public - outside /api/v1)

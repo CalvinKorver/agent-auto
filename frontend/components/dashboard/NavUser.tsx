@@ -45,7 +45,7 @@ export function NavUser({
   const { isMobile } = useSidebar()
   const { logout } = useAuth()
   const router = useRouter()
-  const { theme } = useTheme()
+  const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [gmailConnected, setGmailConnected] = useState(false)
   const [gmailEmail, setGmailEmail] = useState<string>()
@@ -93,10 +93,10 @@ export function NavUser({
     }
   }
 
-  // Use dark color logo in light mode, original in dark mode
-  const logoSrc = mounted && theme === 'light' 
-    ? '/lolo-logo-dark-color-v1.png' 
-    : '/lolo-logo-v2.png'
+  // Use dark logo in light mode, light logo in dark mode
+  const logoSrc = mounted && resolvedTheme === 'light' 
+    ? '/logo-dark-v2.png' 
+    : '/logo-light-v2.png'
 
   return (
     <SidebarMenu>
@@ -126,7 +126,7 @@ export function NavUser({
                   {mounted && (
                     <Image
                       src={logoSrc}
-                      alt="Lolo AI"
+                      alt="Otto"
                       width={80}
                       height={24}
                       className="h-6 w-auto"

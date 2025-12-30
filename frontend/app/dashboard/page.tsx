@@ -181,6 +181,7 @@ function DashboardContent() {
               offers={offers}
               onInboxMessageAssigned={handleInboxMessageAssigned}
               onNavigateToThread={handleNavigateToThread}
+              onOfferDeleted={loadDashboard}
             />
           )}
         </div>

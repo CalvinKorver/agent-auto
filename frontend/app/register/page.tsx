@@ -28,10 +28,13 @@ export default function RegisterPage() {
     setMounted(true);
   }, []);
 
-  // Use dark color logo in light mode, original in dark mode
+  // Use dark logo in light mode, light logo in dark mode
+  // Default to dark logo until theme is determined
   const logoSrc = mounted && theme === 'light' 
-    ? '/lolo-logo-dark-color-v1.png' 
-    : '/lolo-logo-v2.png';
+    ? '/logo-dark.png' 
+    : mounted && theme === 'dark'
+    ? '/logo-light-v2.png'
+    : '/logo-dark-v2.png'; // Default to dark logo
 
   const {
     register,
@@ -59,14 +62,15 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="max-w-md w-full bg-card rounded-lg shadow-md border border-border p-8">
         <div className="text-center mb-8">
-          <div className="mb-4 flex justify-center">
+        <div className="mb-4 flex justify-center">
             <Image
               src={logoSrc}
-              alt="Lolo AI"
+              alt="Otto"
               width={200}
               height={60}
               className="h-12 w-auto"
             />
+          </div>
           <p className="text-sm text-muted-foreground">Create your account</p>
         </div>
 
