@@ -74,3 +74,15 @@ func (s *GmailService) SendReply(userID uuid.UUID, to, subject, htmlBody, extern
 	// Send reply
 	return gmail.SendReply(service, to, subject, htmlBody, externalMessageID)
 }
+
+// CreateDraft creates a Gmail draft via user's Gmail
+func (s *GmailService) CreateDraft(userID uuid.UUID, to, subject, htmlBody, externalMessageID string) error {
+	// Create Gmail service for this user
+	service, err := gmail.CreateGmailService(userID, s.tokenManager, s.oauthConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create Gmail service: %w", err)
+	}
+
+	// Create draft
+	return gmail.CreateDraft(service, to, subject, htmlBody, externalMessageID)
+}

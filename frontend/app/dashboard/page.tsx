@@ -7,7 +7,7 @@ import { AppSidebar } from '@/components/dashboard/AppSidebar';
 import ChatPane from '@/components/dashboard/ChatPane';
 import TopNavBar from '@/components/dashboard/TopNavBar';
 import OffersPane from '@/components/dashboard/OffersPane';
-import { Thread, threadAPI, InboxMessage } from '@/lib/api';
+import { Thread, InboxMessage, TrackedOffer, dashboardAPI } from '@/lib/api';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { toast } from 'sonner';
 
@@ -18,9 +18,12 @@ function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [threads, setThreads] = useState<Thread[]>([]);
+  const [inboxMessages, setInboxMessages] = useState<InboxMessage[]>([]);
+  const [offers, setOffers] = useState<TrackedOffer[]>([]);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [selectedInboxMessage, setSelectedInboxMessage] = useState<InboxMessage | null>(null);
-  const [loadingThreads, setLoadingThreads] = useState(false);
+  const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
+  const [loadingDashboard, setLoadingDashboard] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('chat');
 
   // Check if user just connected Gmail
@@ -48,28 +51,30 @@ function DashboardContent() {
 
   useEffect(() => {
     if (user && user.preferences) {
-      loadThreads();
+      loadDashboard();
     }
   }, [user]);
 
   useEffect(() => {
     const handleRefresh = () => {
-      loadThreads();
+      loadDashboard();
       setSelectedThreadId(null);
     };
     window.addEventListener('refreshThreads', handleRefresh);
     return () => window.removeEventListener('refreshThreads', handleRefresh);
   }, []);
 
-  const loadThreads = async () => {
-    setLoadingThreads(true);
+  const loadDashboard = async () => {
+    setLoadingDashboard(true);
     try {
-      const fetchedThreads = await threadAPI.getAll();
-      setThreads(fetchedThreads);
+      const data = await dashboardAPI.getDashboard();
+      setThreads(data.threads);
+      setInboxMessages(data.inboxMessages);
+      setOffers(data.offers);
     } catch (error) {
-      console.error('Failed to load threads:', error);
+      console.error('Failed to load dashboard data:', error);
     } finally {
-      setLoadingThreads(false);
+      setLoadingDashboard(false);
     }
   };
 
@@ -82,33 +87,52 @@ function DashboardContent() {
     setThreads([...threads, newThread]);
     setSelectedThreadId(newThread.id);
     setSelectedInboxMessage(null);
+    setSelectedOfferId(null);
   };
 
   const handleThreadSelect = (threadId: string) => {
     setSelectedThreadId(threadId);
     setSelectedInboxMessage(null);
+    setSelectedOfferId(null);
     setViewMode('chat');
   };
 
   const handleInboxMessageSelect = (message: InboxMessage) => {
     setSelectedInboxMessage(message);
     setSelectedThreadId(null);
+    setSelectedOfferId(null);
     setViewMode('inbox');
+  };
+
+  const handleOfferSelect = (offer: TrackedOffer) => {
+    setSelectedOfferId(offer.id);
+    setSelectedThreadId(offer.threadId);
+    setSelectedInboxMessage(null);
+    setViewMode('chat');
   };
 
   const handleViewOffers = () => {
     setViewMode('offers');
     setSelectedThreadId(null);
     setSelectedInboxMessage(null);
+    setSelectedOfferId(null);
   };
 
   const handleNavigateToThread = (threadId: string) => {
     setSelectedThreadId(threadId);
     setSelectedInboxMessage(null);
+    setSelectedOfferId(null);
     setViewMode('chat');
   };
 
-  if (loading || loadingThreads) {
+  const handleGoToDashboard = () => {
+    setSelectedThreadId(null);
+    setSelectedInboxMessage(null);
+    setSelectedOfferId(null);
+    setViewMode('chat');
+  };
+
+  if (loading || loadingDashboard) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-gray-600">Loading...</div>
@@ -133,11 +157,16 @@ function DashboardContent() {
       <AppSidebar
         variant="inset"
         threads={threads}
+        inboxMessages={inboxMessages}
         selectedThreadId={selectedThreadId}
         selectedInboxMessageId={selectedInboxMessage?.id || null}
+        offers={offers}
+        selectedOfferId={selectedOfferId}
         onThreadSelect={handleThreadSelect}
         onThreadCreated={handleThreadCreated}
         onInboxMessageSelect={handleInboxMessageSelect}
+        onOfferSelect={handleOfferSelect}
+        onGoToDashboard={handleGoToDashboard}
       />
       <SidebarInset className="overflow-x-hidden">
         {/* <TopNavBar onViewOffers={handleViewOffers} /> */}
@@ -149,7 +178,10 @@ function DashboardContent() {
               selectedThreadId={selectedThreadId}
               selectedInboxMessage={selectedInboxMessage}
               threads={threads}
+              offers={offers}
               onInboxMessageAssigned={handleInboxMessageAssigned}
+              onNavigateToThread={handleNavigateToThread}
+              onOfferDeleted={loadDashboard}
             />
           )}
         </div>

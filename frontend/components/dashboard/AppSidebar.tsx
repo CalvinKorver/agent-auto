@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { IconMail, IconMessageCircle, IconPlus, IconCopy, IconCheck } from '@tabler/icons-react';
-import { Thread, InboxMessage, messageAPI, threadAPI } from '@/lib/api';
+import { IconMail, IconMessageCircle, IconPlus, IconCopy, IconCheck, IconCurrencyDollar, IconHelpCircle } from '@tabler/icons-react';
+import { Thread, InboxMessage, TrackedOffer, threadAPI } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { SidebarInboxItem } from './SidebarInboxItem';
+import { SidebarOfferItem } from './SidebarOfferItem';
 import { NavUser } from './NavUser';
 import {
   Sidebar,
@@ -39,59 +40,42 @@ import * as React from 'react';
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   threads: Thread[];
+  inboxMessages: InboxMessage[];
   selectedThreadId: string | null;
   selectedInboxMessageId: string | null;
+  offers: TrackedOffer[];
+  selectedOfferId: string | null;
   onThreadSelect: (threadId: string) => void;
   onThreadCreated: (thread: Thread) => void;
   onInboxMessageSelect: (message: InboxMessage) => void;
+  onOfferSelect: (offer: TrackedOffer) => void;
+  onGoToDashboard?: () => void;
 }
 
 export function AppSidebar({
   threads,
+  inboxMessages,
   selectedThreadId,
   selectedInboxMessageId,
+  offers,
+  selectedOfferId,
   onThreadSelect,
   onThreadCreated,
   onInboxMessageSelect,
+  onOfferSelect,
+  onGoToDashboard,
   ...props
 }: AppSidebarProps) {
   const { user } = useAuth();
-  const [inboxMessages, setInboxMessages] = useState<InboxMessage[]>([]);
-  const [loadingInbox, setLoadingInbox] = useState(false);
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [showNewThreadDialog, setShowNewThreadDialog] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   // New thread form state
   const [newSellerName, setNewSellerName] = useState('');
   const [newSellerType, setNewSellerType] = useState<'private' | 'dealership' | 'other'>('dealership');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    loadInboxMessages();
-  }, [refreshKey]);
-
-  useEffect(() => {
-    const handleRefresh = () => {
-      setRefreshKey(prev => prev + 1);
-    };
-    window.addEventListener('refreshInboxMessages', handleRefresh);
-    return () => window.removeEventListener('refreshInboxMessages', handleRefresh);
-  }, []);
-
-  const loadInboxMessages = async () => {
-    setLoadingInbox(true);
-    try {
-      const response = await messageAPI.getInboxMessages();
-      setInboxMessages(response.messages);
-    } catch (error) {
-      console.error('Failed to load inbox messages:', error);
-    } finally {
-      setLoadingInbox(false);
-    }
-  };
 
   const handleCopyEmail = async () => {
     if (user?.inboxEmail) {
@@ -138,39 +122,36 @@ export function AppSidebar({
       <Sidebar {...props}>
 
         <SidebarHeader className="border-sidebar-border h-16 border-b">
-          <NavUser user={{
-            name: user?.email?.split('@')[0] || 'User',
-            email: user?.email || ''
-          }} />
+          <NavUser 
+            user={{
+              name: user?.email?.split('@')[0] || 'User',
+              email: user?.email || ''
+            }}
+            onGoToDashboard={onGoToDashboard}
+          />
         </SidebarHeader>
         <SidebarContent>
 
           {/* Inbox Section */}
           <SidebarGroup>
-            <SidebarGroupLabel className="flex items-center justify-between">
-              <span className="flex items-center gap-2">
+            <SidebarGroupLabel className="flex items-center justify-between text-semibold">
+              <span className="flex items-center gap-2 ">
                 <IconMail className="h-4 w-4" />
                 Inbox
               </span>
+              {user?.inboxEmail && (
+                <IconHelpCircle
+                  onClick={() => setShowEmailDialog(true)}
+                  className="h-4 w-4 cursor-pointer hover:text-foreground text-muted-foreground transition-colors"
+                />
+              )}
             </SidebarGroupLabel>
             <SidebarGroupContent>
-              {user?.inboxEmail && (
-                <div className="px-2 pb-2">
-                  <Button
-                    onClick={() => setShowEmailDialog(true)}
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                  >
-                    <IconPlus className="h-4 w-4 mr-2" />
-                    Add Emails
-                  </Button>
-                </div>
-              )}
-
-              <div className="flex flex-col gap-2 px-2">
-                {loadingInbox ? (
-                  <div className="px-2 py-2 text-sm text-muted-foreground">Loading...</div>
+              <div className="flex flex-col gap-1 px-2">
+                {inboxMessages.length === 0 ? (
+                  <div className="px-2 py-1 text-sm text-muted-foreground italic">
+                    No new messages
+                  </div>
                 ) : (
                   inboxMessages.map((message) => (
                     <SidebarInboxItem
@@ -185,16 +166,42 @@ export function AppSidebar({
             </SidebarGroupContent>
           </SidebarGroup>
 
+          {/* Offers Section */}
+          <SidebarGroup>
+            <SidebarGroupLabel className="flex items-center gap-2 text-semibold">
+              <IconCurrencyDollar className="h-4 w-4" />
+              Offers
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <div className="flex flex-col gap-1 px-2">
+                {offers.length === 0 ? (
+                  <div className="px-2 py-1 text-sm text-muted-foreground italic">
+                    No tracked offers
+                  </div>
+                ) : (
+                  offers.map((offer) => (
+                    <SidebarOfferItem
+                      key={offer.id}
+                      offer={offer}
+                      isActive={selectedOfferId === offer.id}
+                      onSelect={onOfferSelect}
+                    />
+                  ))
+                )}
+              </div>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
           {/* Threads Section */}
           <SidebarGroup>
-            <SidebarGroupLabel className="flex items-center gap-2">
+            <SidebarGroupLabel className="flex items-center gap-2 text-semibold">
               <IconMessageCircle className="h-4 w-4" />
               Threads
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {threads.length === 0 ? (
-                  <div className="px-4 py-2 text-sm text-muted-foreground italic">
+                  <div className="px-4 py-1 text-sm text-muted-foreground italic">
                     No active negotiations
                   </div>
                 ) : (
@@ -203,7 +210,7 @@ export function AppSidebar({
                       <SidebarMenuButton
                         onClick={() => onThreadSelect(thread.id)}
                         isActive={selectedThreadId === thread.id}
-                        className="flex flex-col items-start h-auto py-2"
+                        className="flex flex-col items-start h-auto py-1"
                       >
                         <div className="font-medium">{thread.sellerName}</div>
                       </SidebarMenuButton>
@@ -230,7 +237,7 @@ export function AppSidebar({
       <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Forward Emails Here</DialogTitle>
+            <DialogTitle>Forward Emails</DialogTitle>
             <DialogDescription>
               Forward or BCC emails from sellers to this address and they'll appear in your inbox:
             </DialogDescription>

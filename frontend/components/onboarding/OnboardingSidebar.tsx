@@ -12,7 +12,7 @@ export default function OnboardingSidebar({ currentStep }: OnboardingSidebarProp
   return (
     <div className="w-full lg:w-64 bg-card border-r border-border p-6 flex lg:flex-col gap-6">
       <div className="hidden lg:block mb-8">
-        <h2 className="text-xl font-bold text-card-foreground">Lolo AI</h2>
+        <h2 className="text-xl poppins-regular text-card-foreground">Otto</h2>
       </div>
 
       <nav className="flex lg:flex-col gap-4 lg:gap-6 flex-1 lg:flex-none">

@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
+import { useTheme } from "next-themes"
 import {
   ChevronsUpDown,
+  Home,
   LogOut,
   Mail,
   Settings,
@@ -31,18 +34,26 @@ import { toast } from "sonner"
 
 export function NavUser({
   user,
+  onGoToDashboard,
 }: {
   user: {
     name: string
     email: string
   }
+  onGoToDashboard?: () => void
 }) {
   const { isMobile } = useSidebar()
   const { logout } = useAuth()
   const router = useRouter()
+  const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
   const [gmailConnected, setGmailConnected] = useState(false)
   const [gmailEmail, setGmailEmail] = useState<string>()
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     const fetchGmailStatus = async () => {
@@ -82,25 +93,49 @@ export function NavUser({
     }
   }
 
+  // Use dark logo in light mode, light logo in dark mode
+  const logoSrc = mounted && resolvedTheme === 'light' 
+    ? '/logo-dark-v2.png' 
+    : '/logo-light-v2.png'
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
-              <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-                <User className="h-4 w-4" />
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-lg font-bold">Lolo AI</span>
-                <span className="truncate text-xs">{user.email}</span>
-              </div>
-              <ChevronsUpDown className="ml-auto size-4" />
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
+        <div className="flex items-center gap-2 w-full">
+          <SidebarMenuButton
+            onClick={() => {
+              if (onGoToDashboard) {
+                onGoToDashboard();
+              } else {
+                router.push('/dashboard');
+              }
+            }}
+            className="shrink-0 w-10 h-10 p-0 flex items-center justify-center hover:bg-sidebar-accent"
+            title="Go to Dashboard"
+            asChild={false}
+          >
+            <Home className="size-5" />
+          </SidebarMenuButton>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <SidebarMenuButton
+                size="lg"
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground flex-1"
+              >
+                <div className="h-8 w-auto flex items-center flex-1">
+                  {mounted && (
+                    <Image
+                      src={logoSrc}
+                      alt="Otto"
+                      width={80}
+                      height={24}
+                      className="h-6 w-auto"
+                    />
+                  )}
+                </div>
+                <ChevronsUpDown className="ml-auto size-4" />
+              </SidebarMenuButton>
+            </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
             side={isMobile ? "bottom" : "right"}
@@ -151,6 +186,7 @@ export function NavUser({
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </SidebarMenuItem>
     </SidebarMenu>
   )

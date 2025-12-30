@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { InboxMessage, Thread, messageAPI, Message, threadAPI } from '@/lib/api';
+import { InboxMessage, Thread, messageAPI, Message, threadAPI, TrackedOffer } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -18,6 +18,7 @@ import ArchiveConfirmDialog from './ArchiveConfirmDialog';
 import TrackOfferButton from './TrackOfferButton';
 import SendEmailButton from './SendEmailButton';
 import TypingIndicator from './TypingIndicator';
+import DashboardPane from './DashboardPane';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -34,10 +35,13 @@ interface ChatPaneProps {
   selectedThreadId: string | null;
   selectedInboxMessage?: InboxMessage | null;
   threads?: Thread[];
+  offers?: TrackedOffer[];
   onInboxMessageAssigned?: () => void;
+  onNavigateToThread?: (threadId: string) => void;
+  onOfferDeleted?: () => void;
 }
 
-export default function ChatPane({ selectedThreadId, selectedInboxMessage, threads = [], onInboxMessageAssigned }: ChatPaneProps) {
+export default function ChatPane({ selectedThreadId, selectedInboxMessage, threads = [], offers = [], onInboxMessageAssigned, onNavigateToThread, onOfferDeleted }: ChatPaneProps) {
   const { user } = useAuth();
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
@@ -390,49 +394,14 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
     );
   }
 
-  if (!selectedThreadId) {
+  if (!selectedThreadId && !selectedInboxMessage) {
     return (
-      <>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-16">
-          <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mx-2 data-[orientation=vertical]:h-4"
-            />
-            <h1 className="text-base font-medium">Chat</h1>
-          </div>
-        </header>
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex-1 flex items-center justify-center bg-background">
-            <div className="text-center max-w-md">
-              <div className="mb-6 flex justify-center">
-                <svg
-                  className="w-24 h-24 text-muted"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                  />
-                  <circle cx="19" cy="7" r="3" fill="currentColor" stroke="none" />
-                  <text x="19" y="8.5" fontSize="2.5" textAnchor="middle" fill="white" fontWeight="bold">+</text>
-                </svg>
-              </div>
-              <h2 className="text-2xl font-semibold text-foreground mb-2">
-                No Active Negotiations
-              </h2>
-              <p className="text-muted-foreground">
-                Add a seller in the sidebar to begin chatting.
-              </p>
-            </div>
-          </div>
-        </div>
-      </>
+      <DashboardPane
+        offers={offers}
+        threads={threads}
+        onNavigateToThread={onNavigateToThread}
+        onOfferDeleted={onOfferDeleted}
+      />
     );
   }
 

@@ -25,6 +25,8 @@ export default function OnboardingContainer({ onSuccess }: OnboardingContainerPr
     make: string;
     model: string;
     year: number;
+    trimId?: string | null;
+    trimName?: string | null;
   } | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -47,7 +49,7 @@ export default function OnboardingContainer({ onSuccess }: OnboardingContainerPr
     }, 300);
   };
 
-  const handleVehicleComplete = (data: { make: string; model: string; year: number }) => {
+  const handleVehicleComplete = (data: { make: string; model: string; year: number; trimId?: string | null; trimName?: string | null }) => {
     setVehicleData(data);
     setCurrentStep(3);
     setTimeout(() => {
@@ -58,7 +60,7 @@ export default function OnboardingContainer({ onSuccess }: OnboardingContainerPr
   const handleLaunchPadComplete = async () => {
     if (!vehicleData) return;
 
-    await preferencesAPI.create(vehicleData.year, vehicleData.make, vehicleData.model);
+    await preferencesAPI.create(vehicleData.year, vehicleData.make, vehicleData.model, vehicleData.trimId);
     await onSuccess();
   };
 

@@ -33,31 +33,28 @@ export default function JourneyStateStep({ onSelectJourney, isActive }: JourneyS
 
   return (
     <div className="space-y-4">
-      {/* Lolo AI's message and buttons - animate in together */}
+      {/* Otto's message and buttons - animate in together */}
       {showContent && (
         <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-1000">
           <div className="flex gap-3 items-start">
             <PollyAvatar />
-            <div className="text-md leading-relaxed text-foreground">
+            <div className="text-sm leading-relaxed text-foreground">
               <div>Where are you in your journey?</div>
             </div>
           </div>
 
           {!selected && isActive && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               <button
                 onClick={handleHighIntent}
-                className="p-4 border-2 border-border rounded-lg hover:border-primary hover:bg-accent/50 transition-all text-center group bg-accent text-sm">
-
+                className="px-3 py-2 border-2 border-border rounded-lg hover:border-primary hover:bg-accent/50 transition-all text-center group bg-accent text-sm">
                 I know which car I want!
-
               </button>
 
               <button
                 onClick={handleExploring}
-                className="p-4 border-2 border-border rounded-lg hover:border-primary hover:bg-accent/50 transition-all text-center group bg-accent text-sm">
-                  I don&apos;t know which car I want yet.
-
+                className="px-3 py-2 border-2 border-border rounded-lg hover:border-primary hover:bg-accent/50 transition-all text-center group bg-accent text-sm">
+                I don&apos;t know which car I want yet.
               </button>
             </div>
           )}
@@ -77,7 +74,7 @@ export default function JourneyStateStep({ onSelectJourney, isActive }: JourneyS
 
           <div className="flex items-start gap-3">
             <PollyAvatar />
-            <div className="text-md leading-relaxed text-foreground">
+            <div className="text-sm leading-relaxed text-foreground">
               <div>
                 Great! Our coaching mode is coming soon. For now, let me help you if you know what car you want. Would you like to continue with vehicle selection?
               </div>

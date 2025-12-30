@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"carbuyer/internal/api/middleware"
 	"carbuyer/internal/services"
@@ -423,12 +424,15 @@ func (h *MessageHandler) ReplyViaGmail(w http.ResponseWriter, r *http.Request) {
 	// Send reply via Gmail
 	if err := h.emailService.ReplyViaGmail(userID, messageID, req.Content); err != nil {
 		w.Header().Set("Content-Type", "application/json")
-		if err.Error() == "message not found" {
+		errMsg := err.Error()
+		if errMsg == "message not found" {
 			w.WriteHeader(http.StatusNotFound)
-		} else if err.Error() == "message was not received via email" {
+		} else if errMsg == "message was not received via email" {
 			w.WriteHeader(http.StatusBadRequest)
-		} else if err.Error() == "gmail not connected" {
+		} else if strings.Contains(errMsg, "gmail not connected") {
 			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "gmail not connected"})
+			return
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
@@ -439,4 +443,65 @@ func (h *MessageHandler) ReplyViaGmail(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "email sent successfully"})
+}
+
+// CreateDraftViaGmail creates a Gmail draft via user's connected Gmail
+// POST /api/v1/messages/{messageId}/draft
+func (h *MessageHandler) CreateDraftViaGmail(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserIDFromContext(r.Context())
+	if !ok {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "unauthorized"})
+		return
+	}
+
+	messageIDStr := chi.URLParam(r, "messageId")
+	messageID, err := uuid.Parse(messageIDStr)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid message ID"})
+		return
+	}
+
+	var req struct {
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	if req.Content == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "content is required"})
+		return
+	}
+
+	// Create draft via Gmail
+	if err := h.emailService.CreateDraftViaGmail(userID, messageID, req.Content); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		errMsg := err.Error()
+		if errMsg == "message not found" {
+			w.WriteHeader(http.StatusNotFound)
+		} else if errMsg == "message was not received via email" {
+			w.WriteHeader(http.StatusBadRequest)
+		} else if strings.Contains(errMsg, "gmail not connected") {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "gmail not connected"})
+			return
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "draft created successfully"})
 }

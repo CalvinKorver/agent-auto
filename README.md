@@ -1,4 +1,4 @@
-# Lolo AI Application
+# Otto Application
 
 An AI-powered car buying assistant that helps users negotiate and communicate with multiple car sellers simultaneously through dedicated agent-based chat threads.
 

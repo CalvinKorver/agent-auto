@@ -1,32 +1,32 @@
 'use client';
 
-import { InboxMessage } from '@/lib/api';
+import { TrackedOffer } from '@/lib/api';
 
-interface SidebarInboxItemProps {
-  message: InboxMessage;
+interface SidebarOfferItemProps {
+  offer: TrackedOffer;
   isActive: boolean;
-  onSelect: (message: InboxMessage) => void;
+  onSelect: (offer: TrackedOffer) => void;
 }
 
-export function SidebarInboxItem({
-  message,
+export function SidebarOfferItem({
+  offer,
   isActive,
   onSelect,
-}: SidebarInboxItemProps) {
-
+}: SidebarOfferItemProps) {
   return (
     <div
       className={`cursor-pointer rounded-md p-1.5 hover:bg-accent transition-colors ${
         isActive ? 'bg-accent' : ''
       }`}
-      onClick={() => onSelect(message)}
+      onClick={() => onSelect(offer)}
     >
       <div className="font-medium text-sm truncate leading-tight">
-        {message.subject || 'No Subject'}
+        {offer.sellerName || 'Unknown Seller'}
       </div>
       <div className="text-xs text-muted-foreground truncate leading-tight">
-        {message.senderEmail}
+        {offer.offerText}
       </div>
     </div>
   );
 }
+

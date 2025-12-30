@@ -174,3 +174,53 @@ func (h *OfferHandler) GetAllOffers(w http.ResponseWriter, r *http.Request) {
 		Offers: response,
 	})
 }
+
+// DeleteOffer deletes a tracked offer
+func (h *OfferHandler) DeleteOffer(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserIDFromContext(r.Context())
+	if !ok {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "unauthorized"})
+		return
+	}
+
+	offerIDStr := chi.URLParam(r, "id")
+	offerID, err := uuid.Parse(offerIDStr)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid offer ID"})
+		return
+	}
+
+	// Verify offer belongs to user's thread
+	var offer models.TrackedOffer
+	err = h.db.DB.
+		Joins("JOIN threads ON threads.id = tracked_offers.thread_id").
+		Where("tracked_offers.id = ? AND threads.user_id = ?", offerID, userID).
+		First(&offer).Error
+
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "offer not found"})
+		return
+	}
+
+	// Delete the offer
+	if err := h.db.DB.Delete(&offer).Error; err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "failed to delete offer"})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(struct {
+		Message string `json:"message"`
+	}{
+		Message: "offer deleted successfully",
+	})
+}

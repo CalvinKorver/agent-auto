@@ -106,7 +106,7 @@ export default function ThreadPane({
           <svg className="w-8 h-8 text-muted-foreground" fill="currentColor" viewBox="0 0 24 24">
             <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
           </svg>
-          <h1 className="text-xl font-bold">Lolo AI</h1>
+          <h1 className="text-xl poppins-regular">Otto</h1>
         </div>
       </div>
 
@@ -257,7 +257,7 @@ export default function ThreadPane({
       {showEmailDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowEmailDialog(false)}>
           <div className="bg-popover rounded-lg p-6 max-w-md w-full mx-4 border border-border" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-xl font-bold text-popover-foreground mb-4">Forward Emails Here</h2>
+            <h2 className="text-xl font-bold text-popover-foreground mb-4">Forward Emails</h2>
             <p className="text-sm text-muted-foreground mb-4">
               Forward or BCC emails from sellers to this address and they&apos;ll appear in your inbox:
             </p>

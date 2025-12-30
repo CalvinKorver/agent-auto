@@ -18,7 +18,7 @@ import (
 )
 
 func main() {
-	log.Println("Starting Lolo AI API Server...")
+	log.Println("Starting Otto API Server...")
 
 	// Load .env file
 	if err := godotenv.Load(); err != nil {
@@ -48,7 +48,8 @@ func main() {
 
 	// Initialize services
 	authService := services.NewAuthService(database.DB, cfg.JWTSecret, cfg.JWTExpirationHours, cfg.MailgunDomain)
-	preferencesService := services.NewPreferencesService(database.DB)
+	modelsService := services.NewModelsService(database.DB)
+	preferencesService := services.NewPreferencesService(database.DB, modelsService)
 	claudeService := services.NewClaudeService(cfg.AnthropicAPIKey)
 	threadService := services.NewThreadService(database.DB)
 	messageService := services.NewMessageService(database.DB, claudeService)
@@ -75,6 +76,8 @@ func main() {
 	emailHandler := handlers.NewEmailHandler(emailService, cfg.MailgunWebhookSigningKey, database.DB)
 	gmailHandler := handlers.NewGmailHandler(gmailService, cfg.AllowedOrigins[0]) // Use first allowed origin as frontend URL
 	offerHandler := handlers.NewOfferHandler(database)
+	dashboardHandler := handlers.NewDashboardHandler(threadService, messageService, database)
+	modelsHandler := handlers.NewModelsHandler(modelsService)
 
 	// Initialize router
 	r := chi.NewRouter()
@@ -121,7 +124,7 @@ func main() {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"message":"Lolo AI API","version":"1.0.0"}`))
+			w.Write([]byte(`{"message":"Otto API","version":"1.0.0"}`))
 		})
 
 		// Auth routes
@@ -140,6 +143,12 @@ func main() {
 			r.Get("/", preferencesHandler.GetPreferences)
 			r.Post("/", preferencesHandler.CreatePreferences)
 			r.Put("/", preferencesHandler.UpdatePreferences)
+		})
+
+		// Dashboard route (protected) - consolidated endpoint for threads, inbox messages, and offers
+		r.Route("/dashboard", func(r chi.Router) {
+			r.Use(middleware.AuthMiddleware(authService))
+			r.Get("/", dashboardHandler.GetDashboard)
 		})
 
 		// Thread routes (all protected)
@@ -162,6 +171,7 @@ func main() {
 		r.Route("/offers", func(r chi.Router) {
 			r.Use(middleware.AuthMiddleware(authService))
 			r.Get("/", offerHandler.GetAllOffers)
+			r.Delete("/{id}", offerHandler.DeleteOffer)
 		})
 
 		// Inbox message routes (all protected)
@@ -184,6 +194,7 @@ func main() {
 		r.Route("/messages", func(r chi.Router) {
 			r.Use(middleware.AuthMiddleware(authService))
 			r.Post("/{messageId}/reply-via-gmail", messageHandler.ReplyViaGmail)
+			r.Post("/{messageId}/draft", messageHandler.CreateDraftViaGmail)
 		})
 
 		// Webhook routes (public - no auth)
@@ -191,6 +202,10 @@ func main() {
 			r.Post("/email/inbound", emailHandler.InboundEmail)
 			r.Post("/email/test", emailHandler.TestInboundEmail) // For testing without Mailgun
 		})
+
+		// Models route (public - no auth)
+		r.Get("/models", modelsHandler.GetModels)
+		r.Get("/trims", modelsHandler.GetTrims)
 	})
 
 	// OAuth callback route (public - outside /api/v1)

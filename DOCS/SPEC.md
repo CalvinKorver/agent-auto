@@ -1,4 +1,4 @@
-# Lolo AI Application - Technical Specification
+# Otto Application - Technical Specification
 
 ## Overview
 An AI-powered car buying assistant that helps users negotiate and communicate with multiple car sellers simultaneously through dedicated agent-based chat threads.
@@ -38,7 +38,7 @@ An AI-powered car buying assistant that helps users negotiate and communicate wi
 +----------------------+------------------------------------------------+
 | SIDEBAR              | MAIN CONTENT AREA                              |
 +----------------------+------------------------------------------------+
-| **Lolo AI** |                                                |
+| **Otto** |                                                |
 |                      |                                                |
 | TARGET VEHICLE:      |                                                |
 | Mazda CX-90          |                                                |
@@ -178,7 +178,7 @@ After preferences are set, users can:
 +----------------------+------------------------------------------------+
 | SIDEBAR              | MAIN CONTENT AREA - ACTIVE THREAD              |
 +----------------------+------------------------------------------------+
-| **Lolo AI** |                                                |
+| **Otto** |                                                |
 |                      | Header: **Downtown Toyota Dealership** [⚙️]    |
 | TARGET VEHICLE:      |------------------------------------------------|
 | Mazda CX-90          | (Chat History Scroll Area)                     |
