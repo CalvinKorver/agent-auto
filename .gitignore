@@ -1,1 +1,8 @@
 backend/.env.prod
+
+# Compiled binaries
+backend/main
+backend/server
+
+# Temporary files
+backend/tmp/
