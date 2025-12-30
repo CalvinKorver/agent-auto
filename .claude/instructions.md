@@ -2,7 +2,7 @@
 
 ## Deployment & Infrastructure
 - Backend: Railway (`https://agent-auto-production.up.railway.app/`, port 8080). Dockerfile in repo root; Render alternative build `go build -o bin/server cmd/server/main.go`, start `./bin/server`.
-- Frontend: https://www.agentauto.com on Vercel (root `frontend/`, build `npm run build`).
+- Frontend: https://www.OttoAI.com on Vercel (root `frontend/`, build `npm run build`).
 
 ## Development Quickstart
 - Run both with hot reload: `./dev.sh` (installs/runs Air in `backend/`, then `npm run dev` in `frontend/`).

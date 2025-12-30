@@ -1,6 +1,6 @@
 ## Otto Repo Notes
 
-- Purpose: AI-assisted car-buying app. Backend Go API, frontend Next.js 14 (app router + Tailwind + shadcn). Production: backend on Railway, frontend on https://www.agentauto.com.
+- Purpose: AI-assisted car-buying app. Backend Go API, frontend Next.js 14 (app router + Tailwind + shadcn). Production: backend on Railway, frontend on https://www.OttoAI.com.
 
 ### Key Docs
 - `README.md` for stack/overview, `DOCS/QUICKSTART.md` for prod deploy, `DOCS/IMPLEMENTATION_PLAN.md` for chat feature status, `DOCS/SPEC.md` for API/architecture, `backend/MIGRATIONS.md` for migration approach, `backend/TESTING.md` for Gmail OAuth tests.
