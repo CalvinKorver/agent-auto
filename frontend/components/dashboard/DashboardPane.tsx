@@ -6,7 +6,9 @@ import { TrackedOffer, Thread, offerAPI } from '@/lib/api';
 import { IconSearch, IconUpload, IconSettings, IconTrash } from '@tabler/icons-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
+import { estimateInvoicePrice, estimateDealerHoldback, calculateNetNetPrice, getTargetPriceType } from '@/lib/pricing';
 
 interface DashboardPaneProps {
   offers: TrackedOffer[];
@@ -56,30 +58,6 @@ function calculateOttoScore(price: number, marketAverage: number): { score: numb
   }
 }
 
-// Gradient bar component for Target Fair Price
-function GradientBar({ targetPrice, marketAverage }: { targetPrice: number; marketAverage: number }) {
-  const minPrice = Math.min(targetPrice, marketAverage) * 0.9;
-  const maxPrice = Math.max(targetPrice, marketAverage) * 1.1;
-  const range = maxPrice - minPrice;
-  
-  const targetPosition = ((targetPrice - minPrice) / range) * 100;
-  const marketPosition = ((marketAverage - minPrice) / range) * 100;
-
-  return (
-    <div className="relative w-full h-8 rounded-md overflow-hidden bg-gradient-to-r from-red-500 via-yellow-500 to-green-500">
-      <div className="absolute inset-0 flex items-center">
-        <div
-          className="absolute w-1 h-full bg-white border-2 border-gray-900 z-10"
-          style={{ left: `${targetPosition}%` }}
-        />
-        <div
-          className="absolute w-1 h-full bg-blue-500 border-2 border-white z-10"
-          style={{ left: `${marketPosition}%` }}
-        />
-      </div>
-    </div>
-  );
-}
 
 export default function DashboardPane({ offers, threads, onNavigateToThread, onOfferDeleted }: DashboardPaneProps) {
   const [deletingOfferId, setDeletingOfferId] = useState<string | null>(null);
@@ -108,11 +86,17 @@ export default function DashboardPane({ offers, threads, onNavigateToThread, onO
   const { user } = useAuth();
   const preferences = user?.preferences;
 
+  // Calculate pricing data from preferences
+  const msrp = preferences?.baseMsrp || 0;
+  const make = preferences?.make || '';
+  const model = preferences?.model || '';
+  const estimatedInvoice = msrp > 0 && make ? estimateInvoicePrice(msrp, make) : 0;
+  const estimatedHoldback = msrp > 0 && make ? estimateDealerHoldback(msrp, make) : 0;
+  const netNetPrice = msrp > 0 && make ? calculateNetNetPrice(msrp, make) : 0;
+  const targetPriceType = make && model ? getTargetPriceType(make, model) : 'Invoice';
+
   // Placeholder market data
-  const targetFairPrice = 40800;
-  const marketAverage = 41200;
-  const marketVelocity = 'High Demand';
-  const daysToMove = 8;
+  const marketAverage = msrp > 0 ? msrp * 1.01 : 41200; // 1% above MSRP as placeholder
 
   // Find historic low from offers
   let historicLow: { price: number; dealer: string; time: string } | null = null;
@@ -138,7 +122,7 @@ export default function DashboardPane({ offers, threads, onNavigateToThread, onO
   const processedOffers = offers.map(offer => {
     const price = parsePriceFromOfferText(offer.offerText);
     const ottoScore = price ? calculateOttoScore(price, marketAverage) : null;
-    const gapToMarket = price ? price - targetFairPrice : null;
+    const gapToMarket = price ? price - msrp : null;
 
     return {
       ...offer,
@@ -189,7 +173,7 @@ export default function DashboardPane({ offers, threads, onNavigateToThread, onO
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center gap-2">
                         <span className="text-muted-foreground">Trim:</span>
-                        <span className="text-card-foreground">Turbo Signature</span>
+                        <span className="text-card-foreground">{preferences?.trim || 'Unspecified'}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-muted-foreground">Exterior:</span>
@@ -212,64 +196,138 @@ export default function DashboardPane({ offers, threads, onNavigateToThread, onO
               <h2 className="text-2xl font-semibold text-foreground mb-4">
                 Market Intelligence
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Target Fair Price Card */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* MSRP (Suggested retail) Card */}
                 <div className="bg-card border border-border rounded-lg p-4">
                   <h3 className="text-sm font-medium text-card-foreground mb-3">
-                    Target Fair Price
-                  </h3>
-                  <GradientBar targetPrice={targetFairPrice} marketAverage={marketAverage} />
-                  <div className="mt-3 space-y-1">
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Target Fair Price: </span>
-                      <span className="font-semibold text-card-foreground">
-                        ${targetFairPrice.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Current Market Average: </span>
-                      <span className="text-card-foreground">
-                        ${marketAverage.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Market Velocity Card */}
-                <div className="bg-card border border-border rounded-lg p-4">
-                  <h3 className="text-sm font-medium text-card-foreground mb-3">
-                    Market Velocity
+                    MSRP (Suggested retail)
                   </h3>
                   <div className="space-y-2">
-                    <div className="text-lg font-semibold text-card-foreground">
-                      {marketVelocity}
+                    <div className="text-2xl font-semibold text-card-foreground">
+                      {msrp > 0 ? `$${msrp.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : 'N/A'}
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      Cars move in ~{daysToMove} days
+                    <div className="text-xs text-muted-foreground">
+                      Manufacturer&apos;s suggested retail price
                     </div>
                   </div>
                 </div>
 
-                {/* Historic Low Card */}
+                {/* Estimated Invoice Price Card */}
                 <div className="bg-card border border-border rounded-lg p-4">
                   <h3 className="text-sm font-medium text-card-foreground mb-3">
-                    Historic Low
+                    Estimated Invoice Price
                   </h3>
-                  {historicLow ? (
-                    <div className="space-y-1">
-                      <div className="text-lg font-semibold text-card-foreground">
-                        ${historicLow.price.toLocaleString()}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        at {historicLow.dealer} ({historicLow.time})
-                      </div>
+                  <div className="space-y-2">
+                    <div className="text-2xl font-semibold text-card-foreground">
+                      {estimatedInvoice > 0 ? `$${estimatedInvoice.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : 'N/A'}
                     </div>
-                  ) : (
-                    <div className="text-sm text-muted-foreground">
-                      No tracked offers yet
+                    <div className="text-xs text-muted-foreground">
+                      Dealer cost before holdback
                     </div>
-                  )}
+                  </div>
                 </div>
+
+                {/* Estimated Dealer Holdback Card */}
+                <div className="bg-card border border-border rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-card-foreground mb-3">
+                    Estimated Dealer Holdback
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="text-2xl font-semibold text-card-foreground">
+                      {estimatedHoldback > 0 ? `$${estimatedHoldback.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : 'N/A'}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Manufacturer rebate to dealer
+                    </div>
+                  </div>
+                </div>
+
+                {/* Net Net Price Card */}
+                <div className="bg-card border border-border rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-card-foreground mb-3">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help underline decoration-dotted">
+                          Net Net Price
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>This is the price that dealers &apos;break even&apos; on after the holdbacks and invoice pricing.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="text-2xl font-semibold text-card-foreground">
+                      {netNetPrice > 0 ? `$${netNetPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : 'N/A'}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Dealer break-even price
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* What a Good Deal Is Section */}
+            <div>
+              <h2 className="text-2xl font-semibold text-foreground mb-4">
+                What a Good Deal Is
+              </h2>
+              <div className="bg-card border border-border rounded-lg p-6">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-muted/50 border-b border-border">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-foreground">
+                          If the car is...
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-foreground">
+                          Your Target Price
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-border">
+                        <td className="px-4 py-3 text-sm text-card-foreground">
+                          <span className="font-medium">High Demand</span> (Toyota Hybrids, Porsche)
+                        </td>
+                        <td className="px-4 py-3 text-sm text-card-foreground">
+                          MSRP is often the floor.
+                        </td>
+                      </tr>
+                      <tr className="border-b border-border">
+                        <td className="px-4 py-3 text-sm text-card-foreground">
+                          <span className="font-medium">Average Demand</span> (Honda, Subaru, Mazda)
+                        </td>
+                        <td className="px-4 py-3 text-sm text-card-foreground">
+                          Invoice is a very fair deal.
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm text-card-foreground">
+                          <span className="font-medium">Low Demand/High Stock</span> (Jeep, Ram, Ford Trucks)
+                        </td>
+                        <td className="px-4 py-3 text-sm text-card-foreground">
+                          Net-Net or below (using hidden incentives).
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                {make && model && (
+                  <div className="mt-4 p-4 bg-muted/30 rounded-lg">
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">For your </span>
+                      <span className="font-medium text-card-foreground">{make} {model}</span>
+                      <span className="text-muted-foreground">, target: </span>
+                      <span className="font-semibold text-card-foreground">
+                        {targetPriceType === 'MSRP' && `$${msrp.toLocaleString(undefined, { maximumFractionDigits: 0 })} (MSRP)`}
+                        {targetPriceType === 'Invoice' && `$${estimatedInvoice.toLocaleString(undefined, { maximumFractionDigits: 0 })} (Invoice)`}
+                        {targetPriceType === 'Net-Net' && `$${netNetPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })} (Net-Net)`}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -361,7 +419,7 @@ export default function DashboardPane({ offers, threads, onNavigateToThread, onO
                                 >
                                   {offer.gapToMarket < 0 ? '' : '+'}
                                   ${Math.abs(offer.gapToMarket).toLocaleString()}{' '}
-                                  {offer.gapToMarket < 0 ? '(Below Target)' : '(Above Target)'}
+                                  {offer.gapToMarket < 0 ? '(Below MSRP)' : '(Above MSRP)'}
                                 </span>
                               ) : (
                                 <span className="text-muted-foreground">—</span>

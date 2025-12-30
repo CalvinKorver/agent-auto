@@ -7,6 +7,7 @@ import { z } from 'zod';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 
@@ -23,10 +24,18 @@ export default function LoginPage() {
   const [mounted, setMounted] = useState(false);
   const { resolvedTheme } = useTheme();
   const { login } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Redirect to waiting page if flag is enabled
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_REDIRECT_TO_WAITING === 'True') {
+      router.push('/waiting');
+    }
+  }, [router]);
 
   // Use dark logo in light mode, light logo in dark mode
   const logoSrc = mounted && resolvedTheme === 'light' 
@@ -118,7 +127,10 @@ export default function LoginPage() {
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{' '}
-          <Link href="/register" className="text-primary hover:text-primary/80 font-medium">
+          <Link 
+            href={process.env.NEXT_PUBLIC_REDIRECT_TO_WAITING === 'True' ? '/waiting' : '/register'} 
+            className="text-primary hover:text-primary/80 font-medium"
+          >
             Sign up
           </Link>
         </p>

@@ -20,6 +20,11 @@ export default function LandingPage() {
     ? '/logo-dark-v2.png' 
     : '/logo-light-v2.png';
 
+  // Check if redirect to waiting page is enabled
+  const redirectToWaiting = process.env.NEXT_PUBLIC_REDIRECT_TO_WAITING === 'True';
+  const loginHref = redirectToWaiting ? '/waiting' : '/login';
+  const registerHref = redirectToWaiting ? '/waiting' : '/register';
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
       {/* Hero Section */}
@@ -35,10 +40,10 @@ export default function LandingPage() {
             />
           </div>
           <div className="flex gap-3">
-            <Link href="/login">
+            <Link href={loginHref}>
               <Button variant="ghost">Sign In</Button>
             </Link>
-            <Link href="/register">
+            <Link href={registerHref}>
               <Button>Get Started</Button>
             </Link>
           </div>
@@ -55,7 +60,7 @@ export default function LandingPage() {
           Get the car you want without the stress.
         </p>
         <div className="flex gap-4 justify-center">
-          <Link href="/register">
+          <Link href={registerHref}>
             <Button size="lg">Start Your Search</Button>
           </Link>
           <Link href="#features">
@@ -121,7 +126,7 @@ export default function LandingPage() {
         <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
           Join thousands of satisfied customers who found their perfect vehicle through AgentAuto.
         </p>
-        <Link href="/register">
+        <Link href={registerHref}>
           <Button size="lg">Get Started Today</Button>
         </Link>
       </section>

@@ -30,12 +30,13 @@ type PreferencesRequest struct {
 
 // PreferencesFullResponse represents preferences in API responses
 type PreferencesFullResponse struct {
-	Year      int    `json:"year"`
-	Make      string `json:"make"`
-	Model     string `json:"model"`
-	Trim      string `json:"trim,omitempty"` // Trim name, empty if unspecified
-	TrimID    string `json:"trimId,omitempty"` // Trim ID, empty if unspecified
-	CreatedAt string `json:"createdAt"`
+	Year      int     `json:"year"`
+	Make      string  `json:"make"`
+	Model     string  `json:"model"`
+	Trim      string  `json:"trim,omitempty"` // Trim name, empty if unspecified
+	TrimID    string  `json:"trimId,omitempty"` // Trim ID, empty if unspecified
+	BaseMSRP  float64 `json:"baseMsrp,omitempty"` // Base MSRP from trim, 0 if not available
+	CreatedAt string  `json:"createdAt"`
 }
 
 // GetPreferences returns the user's preferences
@@ -68,6 +69,7 @@ func (h *PreferencesHandler) GetPreferences(w http.ResponseWriter, r *http.Reque
 	modelName := ""
 	trimName := ""
 	trimIDStr := ""
+	baseMSRP := 0.0
 	if prefs.Make != nil {
 		makeName = prefs.Make.Name
 	}
@@ -77,6 +79,9 @@ func (h *PreferencesHandler) GetPreferences(w http.ResponseWriter, r *http.Reque
 	if prefs.Trim != nil {
 		trimName = prefs.Trim.TrimName
 		trimIDStr = prefs.Trim.ID.String()
+		if prefs.Trim.BaseMSRP.Valid {
+			baseMSRP = prefs.Trim.BaseMSRP.Float64
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -87,6 +92,7 @@ func (h *PreferencesHandler) GetPreferences(w http.ResponseWriter, r *http.Reque
 		Model:     modelName,
 		Trim:      trimName,
 		TrimID:    trimIDStr,
+		BaseMSRP:  baseMSRP,
 		CreatedAt: prefs.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	})
 }
@@ -142,6 +148,7 @@ func (h *PreferencesHandler) CreatePreferences(w http.ResponseWriter, r *http.Re
 	modelName := ""
 	trimName := ""
 	trimIDStr := ""
+	baseMSRP := 0.0
 	if prefs.Make != nil {
 		makeName = prefs.Make.Name
 	}
@@ -151,6 +158,9 @@ func (h *PreferencesHandler) CreatePreferences(w http.ResponseWriter, r *http.Re
 	if prefs.Trim != nil {
 		trimName = prefs.Trim.TrimName
 		trimIDStr = prefs.Trim.ID.String()
+		if prefs.Trim.BaseMSRP.Valid {
+			baseMSRP = prefs.Trim.BaseMSRP.Float64
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -161,6 +171,7 @@ func (h *PreferencesHandler) CreatePreferences(w http.ResponseWriter, r *http.Re
 		Model:     modelName,
 		Trim:      trimName,
 		TrimID:    trimIDStr,
+		BaseMSRP:  baseMSRP,
 		CreatedAt: prefs.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	})
 }
@@ -216,6 +227,7 @@ func (h *PreferencesHandler) UpdatePreferences(w http.ResponseWriter, r *http.Re
 	modelName := ""
 	trimName := ""
 	trimIDStr := ""
+	baseMSRP := 0.0
 	if prefs.Make != nil {
 		makeName = prefs.Make.Name
 	}
@@ -225,6 +237,9 @@ func (h *PreferencesHandler) UpdatePreferences(w http.ResponseWriter, r *http.Re
 	if prefs.Trim != nil {
 		trimName = prefs.Trim.TrimName
 		trimIDStr = prefs.Trim.ID.String()
+		if prefs.Trim.BaseMSRP.Valid {
+			baseMSRP = prefs.Trim.BaseMSRP.Float64
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -235,6 +250,7 @@ func (h *PreferencesHandler) UpdatePreferences(w http.ResponseWriter, r *http.Re
 		Model:     modelName,
 		Trim:      trimName,
 		TrimID:    trimIDStr,
+		BaseMSRP:  baseMSRP,
 		CreatedAt: prefs.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	})
 }

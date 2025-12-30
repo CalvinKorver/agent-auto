@@ -37,6 +37,7 @@ export interface UserPreferences {
   model: string;
   trim?: string; // Trim name, empty if unspecified
   trimId?: string; // Trim ID, empty if unspecified
+  baseMsrp?: number; // Base MSRP from trim, 0 if not available
 }
 
 export interface Thread {
