@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { InboxMessage, Thread, messageAPI, Message, threadAPI, TrackedOffer } from '@/lib/api';
+import { InboxMessage, Thread, messageAPI, Message, threadAPI, TrackedOffer, Dealer } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -36,12 +36,14 @@ interface ChatPaneProps {
   selectedInboxMessage?: InboxMessage | null;
   threads?: Thread[];
   offers?: TrackedOffer[];
+  dealers?: Dealer[];
   onInboxMessageAssigned?: () => void;
   onNavigateToThread?: (threadId: string) => void;
   onOfferDeleted?: () => void;
+  onDealersUpdated?: () => void;
 }
 
-export default function ChatPane({ selectedThreadId, selectedInboxMessage, threads = [], offers = [], onInboxMessageAssigned, onNavigateToThread, onOfferDeleted }: ChatPaneProps) {
+export default function ChatPane({ selectedThreadId, selectedInboxMessage, threads = [], offers = [], dealers = [], onInboxMessageAssigned, onNavigateToThread, onOfferDeleted, onDealersUpdated }: ChatPaneProps) {
   const { user } = useAuth();
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
@@ -399,8 +401,10 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
       <DashboardPane
         offers={offers}
         threads={threads}
+        dealers={dealers}
         onNavigateToThread={onNavigateToThread}
         onOfferDeleted={onOfferDeleted}
+        onDealersUpdated={onDealersUpdated}
       />
     );
   }

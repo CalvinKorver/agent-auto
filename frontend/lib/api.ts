@@ -26,6 +26,7 @@ export interface User {
   email: string;
   createdAt: string;
   inboxEmail?: string;
+  zipCode?: string;
   preferences?: UserPreferences;
   gmailConnected?: boolean;
   gmailEmail?: string;
@@ -129,6 +130,17 @@ export interface Trim {
   trimName: string;
 }
 
+export interface Dealer {
+  id: string;
+  name: string;
+  location: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  distance: number;
+  contacted: boolean;
+}
+
 // Auth API
 export const authAPI = {
   register: async (email: string, password: string): Promise<AuthResponse> => {
@@ -158,22 +170,24 @@ export const preferencesAPI = {
     return response.data;
   },
 
-  create: async (year: number, make: string, model: string, trimId?: string | null): Promise<UserPreferences> => {
+  create: async (year: number, make: string, model: string, trimId?: string | null, zipCode?: string): Promise<UserPreferences> => {
     const response = await api.post<UserPreferences>('/preferences', { 
       year, 
       make, 
       model,
-      trimId: trimId || null
+      trimId: trimId || null,
+      zipCode: zipCode || ''
     });
     return response.data;
   },
 
-  update: async (year: number, make: string, model: string, trimId?: string | null): Promise<UserPreferences> => {
+  update: async (year: number, make: string, model: string, trimId?: string | null, zipCode?: string): Promise<UserPreferences> => {
     const response = await api.put<UserPreferences>('/preferences', { 
       year, 
       make, 
       model,
-      trimId: trimId || null
+      trimId: trimId || null,
+      zipCode: zipCode || ''
     });
     return response.data;
   },
@@ -305,5 +319,19 @@ export const trimsAPI = {
       params: { make, model, year },
     });
     return response.data;
+  },
+};
+
+// Dealers API
+export const dealersAPI = {
+  getDealers: async (): Promise<Dealer[]> => {
+    const response = await api.get<Dealer[]>('/dealers');
+    return response.data;
+  },
+  updateDealers: async (dealerIds: string[], contacted: boolean): Promise<void> => {
+    await api.put('/dealers', {
+      dealerIds,
+      contacted,
+    });
   },
 };

@@ -11,6 +11,7 @@ type User struct {
 	Email        string    `gorm:"uniqueIndex;not null" json:"email"`
 	PasswordHash string    `gorm:"not null" json:"-"`
 	InboxEmail   string    `gorm:"uniqueIndex;not null" json:"inboxEmail"`
+	ZipCode      string    `gorm:"index" json:"zipCode"`
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 

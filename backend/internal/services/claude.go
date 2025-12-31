@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -10,6 +11,16 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
 )
+
+// DealerInfo represents dealer information returned from Claude
+type DealerInfo struct {
+	Name     string  `json:"name"`
+	Location string  `json:"location"`
+	Email    *string `json:"email,omitempty"`
+	Phone    *string `json:"phone,omitempty"`
+	Website  *string `json:"website,omitempty"`
+	Distance float64 `json:"distance"`
+}
 
 type ClaudeService struct {
 	client anthropic.Client
@@ -182,4 +193,81 @@ You are here to serve the user. `, year, make, model, sellerName, competitiveCon
 	fmt.Printf("=========================================\n\n")
 
 	return responseText, nil
+}
+
+// FetchNearbyDealers fetches nearby dealers using Claude AI
+func (s *ClaudeService) FetchNearbyDealers(zipCode string, make string, model string, year int) ([]DealerInfo, error) {
+	systemPrompt := `You are a helpful assistant that finds car dealerships. When given a zip code, vehicle make, model, and year, you should return a JSON array of up to 6 nearest dealerships that sell that brand.
+
+For each dealer, provide:
+- name: The dealership name
+- location: Full address or city, state
+- email: Email address if available (can be null)
+- phone: Phone number if available (can be null)
+- website: Website URL if available (can be null)
+- distance: Estimated distance in miles from the zip code to the dealer location
+
+Return ONLY valid JSON, no other text. The JSON should be an array of objects.`
+
+	userPrompt := fmt.Sprintf(`Find up to 6 nearest dealerships for a %d %s %s near zip code %s. Return the results as a JSON array with the structure: [{"name": "Dealer Name", "location": "Address", "email": "email@example.com" or null, "phone": "123-456-7890" or null, "website": "https://example.com" or null, "distance": 5.2}]. Only return the JSON array, no other text.`, year, make, model, zipCode)
+
+	// Call Claude API
+	message, err := s.client.Messages.New(context.Background(), anthropic.MessageNewParams{
+		Model:     anthropic.ModelClaudeSonnet4_5_20250929,
+		MaxTokens: 2048,
+		System: []anthropic.TextBlockParam{
+			{Text: systemPrompt},
+		},
+		Messages: []anthropic.MessageParam{
+			anthropic.NewUserMessage(anthropic.NewTextBlock(userPrompt)),
+		},
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("claude API error: %w", err)
+	}
+
+	// Extract text from response
+	if len(message.Content) == 0 {
+		return nil, fmt.Errorf("empty response from Claude")
+	}
+
+	if message.Content[0].Type != "text" {
+		return nil, fmt.Errorf("unexpected response format from Claude")
+	}
+
+	responseText := strings.TrimSpace(message.Content[0].Text)
+
+	// Try to extract JSON from the response (in case Claude adds extra text)
+	// Look for array start
+	startIdx := strings.Index(responseText, "[")
+	if startIdx == -1 {
+		return nil, fmt.Errorf("no JSON array found in Claude response")
+	}
+
+	// Look for array end
+	endIdx := strings.LastIndex(responseText, "]")
+	if endIdx == -1 || endIdx <= startIdx {
+		return nil, fmt.Errorf("invalid JSON array in Claude response")
+	}
+
+	jsonText := responseText[startIdx : endIdx+1]
+
+	// Parse JSON
+	var dealers []DealerInfo
+	if err := json.Unmarshal([]byte(jsonText), &dealers); err != nil {
+		return nil, fmt.Errorf("failed to parse Claude JSON response: %w", err)
+	}
+
+	// Validate we have at least some dealers
+	if len(dealers) == 0 {
+		return nil, fmt.Errorf("no dealers found in Claude response")
+	}
+
+	// Limit to 6 dealers
+	if len(dealers) > 6 {
+		dealers = dealers[:6]
+	}
+
+	return dealers, nil
 }

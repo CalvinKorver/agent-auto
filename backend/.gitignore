@@ -19,6 +19,8 @@
 # Go workspace file
 go.work
 
+.docs/*
+
 # Air (hot reload) temporary files
 tmp/
 build-errors.log

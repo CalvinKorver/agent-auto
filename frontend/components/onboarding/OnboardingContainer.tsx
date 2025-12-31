@@ -7,6 +7,7 @@ import ChatInterface from './ChatInterface';
 import WelcomeStep from './steps/WelcomeStep';
 import JourneyStateStep from './steps/JourneyStateStep';
 import VehicleSpecStep from './steps/VehicleSpecStep';
+import ZipCodeStep from './steps/ZipCodeStep';
 import LaunchPadStep from './steps/LaunchPadStep';
 
 interface OnboardingContainerProps {
@@ -19,6 +20,7 @@ export default function OnboardingContainer({ onSuccess }: OnboardingContainerPr
     welcome: true,
     journey: false,
     vehicle: false,
+    zipCode: false,
     launchpad: false,
   });
   const [vehicleData, setVehicleData] = useState<{
@@ -28,6 +30,7 @@ export default function OnboardingContainer({ onSuccess }: OnboardingContainerPr
     trimId?: string | null;
     trimName?: string | null;
   } | null>(null);
+  const [zipCode, setZipCode] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new steps appear
@@ -53,6 +56,14 @@ export default function OnboardingContainer({ onSuccess }: OnboardingContainerPr
     setVehicleData(data);
     setCurrentStep(3);
     setTimeout(() => {
+      setShowSteps((prev) => ({ ...prev, zipCode: true }));
+    }, 300);
+  };
+
+  const handleZipCodeComplete = (zip: string) => {
+    setZipCode(zip);
+    setCurrentStep(4);
+    setTimeout(() => {
       setShowSteps((prev) => ({ ...prev, launchpad: true }));
     }, 300);
   };
@@ -60,14 +71,14 @@ export default function OnboardingContainer({ onSuccess }: OnboardingContainerPr
   const handleLaunchPadComplete = async () => {
     if (!vehicleData) return;
 
-    await preferencesAPI.create(vehicleData.year, vehicleData.make, vehicleData.model, vehicleData.trimId);
+    await preferencesAPI.create(vehicleData.year, vehicleData.make, vehicleData.model, vehicleData.trimId, zipCode || '');
     await onSuccess();
   };
 
   // Map step to sidebar progress (0-2)
   const getSidebarStep = () => {
     if (currentStep === 0 || currentStep === 1) return 0; // About you
-    if (currentStep === 2) return 1; // Car
+    if (currentStep === 2 || currentStep === 3) return 1; // Car
     return 2; // Checkout
   };
 
@@ -84,6 +95,9 @@ export default function OnboardingContainer({ onSuccess }: OnboardingContainerPr
           )}
           {showSteps.vehicle && (
             <VehicleSpecStep onComplete={handleVehicleComplete} isActive={currentStep === 2} />
+          )}
+          {showSteps.zipCode && (
+            <ZipCodeStep onComplete={handleZipCodeComplete} isActive={currentStep === 3} />
           )}
           {showSteps.launchpad && vehicleData && (
             <LaunchPadStep vehicleData={vehicleData} onComplete={handleLaunchPadComplete} />

@@ -158,6 +158,7 @@ func (s *AuthService) GetUserByID(userID uuid.UUID) (*models.User, error) {
 	var user models.User
 	if err := s.db.Preload("Preferences.Make").
 		Preload("Preferences.Model").
+		Preload("Preferences.Trim").
 		Where("id = ?", userID).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("user not found")

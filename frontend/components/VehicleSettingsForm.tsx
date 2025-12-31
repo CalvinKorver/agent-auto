@@ -9,6 +9,9 @@ import { Field, FieldLabel, FieldError } from '@/components/ui/field';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { preferencesAPI, modelsAPI, VehicleModelsResponse, trimsAPI, Trim } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Info } from 'lucide-react';
 import { toast } from 'sonner';
 
 const vehicleSchema = z.object({
@@ -16,6 +19,7 @@ const vehicleSchema = z.object({
   model: z.string().min(1, 'Model is required'),
   year: z.number().min(1960).max(2026),
   trim: z.string().min(1, 'Trim is required'),
+  zipCode: z.string().regex(/^\d{5}$/, 'Zip code must be 5 digits').optional().or(z.literal('')),
 });
 
 type VehicleFormData = z.infer<typeof vehicleSchema>;
@@ -27,6 +31,7 @@ const VEHICLE_YEARS = Array.from(
 );
 
 export default function VehicleSettingsForm() {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [vehicleModels, setVehicleModels] = useState<VehicleModelsResponse>({});
@@ -51,6 +56,7 @@ export default function VehicleSettingsForm() {
       model: '',
       year: 2024,
       trim: '',
+      zipCode: '',
     },
   });
 
@@ -133,6 +139,7 @@ export default function VehicleSettingsForm() {
           model: prefs.model,
           year: prefs.year,
           trim: prefs.trimId || 'unspecified', // Use 'unspecified' if no trimId
+          zipCode: user?.zipCode || '',
         });
         // If we have make/model/year, fetch trims to populate the dropdown
         if (prefs.make && prefs.model && prefs.year) {
@@ -152,13 +159,23 @@ export default function VehicleSettingsForm() {
         if (error.response?.status !== 404) {
           console.error('Failed to load preferences:', error);
         }
+        // Still set zip code from user if available
+        if (user?.zipCode) {
+          reset({
+            make: '',
+            model: '',
+            year: 2024,
+            trim: '',
+            zipCode: user.zipCode,
+          });
+        }
       } finally {
         setInitialLoading(false);
       }
     };
 
     loadPreferences();
-  }, [reset]);
+  }, [reset, user]);
 
   // Get available models for selected make
   const availableModels = makeValue ? vehicleModels[makeValue] || [] : [];
@@ -168,7 +185,8 @@ export default function VehicleSettingsForm() {
     try {
       // Convert trim value to trimId (empty string or "unspecified" means "Unspecified")
       const trimId = data.trim === '' || data.trim === 'unspecified' ? null : data.trim;
-      await preferencesAPI.update(data.year, data.make, data.model, trimId);
+      const zipCode = data.zipCode || '';
+      await preferencesAPI.update(data.year, data.make, data.model, trimId, zipCode);
       toast.success('Vehicle settings saved successfully');
     } catch (error: any) {
       console.error('Failed to save preferences:', error);
@@ -176,7 +194,8 @@ export default function VehicleSettingsForm() {
         // If preferences don't exist, create them instead
         try {
           const trimId = data.trim === '' || data.trim === 'unspecified' ? null : data.trim;
-          await preferencesAPI.create(data.year, data.make, data.model, trimId);
+          const zipCode = data.zipCode || '';
+          await preferencesAPI.create(data.year, data.make, data.model, trimId, zipCode);
           toast.success('Vehicle settings saved successfully');
         } catch (createError) {
           console.error('Failed to create preferences:', createError);
@@ -196,6 +215,7 @@ export default function VehicleSettingsForm() {
       model: '',
       year: 2024,
       trim: '',
+      zipCode: user?.zipCode || '',
     });
     setTrims([]);
     toast.info('Form cleared');
@@ -326,6 +346,29 @@ export default function VehicleSettingsForm() {
             )}
           />
           <FieldError>{errors.trim?.message}</FieldError>
+        </Field>
+
+        <Field>
+          <div className="flex items-center gap-2">
+            <FieldLabel htmlFor="zipCode">Location (Zip Code)</FieldLabel>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Zip Code will help us show you results that are local to you</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <Input
+            id="zipCode"
+            type="text"
+            placeholder="12345"
+            maxLength={5}
+            {...register('zipCode')}
+            className="w-full"
+          />
+          <FieldError>{errors.zipCode?.message}</FieldError>
         </Field>
       </div>
 

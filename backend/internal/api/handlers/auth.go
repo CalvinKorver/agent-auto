@@ -44,6 +44,7 @@ type UserResponse struct {
 	ID             string               `json:"id"`
 	Email          string               `json:"email"`
 	InboxEmail     string               `json:"inboxEmail"`
+	ZipCode        string               `json:"zipCode,omitempty"`
 	CreatedAt      string               `json:"createdAt"`
 	Preferences    *PreferencesResponse `json:"preferences,omitempty"`
 	GmailConnected bool                 `json:"gmailConnected"`
@@ -52,9 +53,11 @@ type UserResponse struct {
 
 // PreferencesResponse represents user preferences in API responses
 type PreferencesResponse struct {
-	Year  int    `json:"year"`
-	Make  string `json:"make"`
-	Model string `json:"model"`
+	Year     int     `json:"year"`
+	Make     string  `json:"make"`
+	Model    string  `json:"model"`
+	Trim     string  `json:"trim,omitempty"`     // Trim name, empty if unspecified
+	BaseMSRP float64 `json:"baseMsrp,omitempty"` // Base MSRP from trim, 0 if not available
 }
 
 // ErrorResponse represents an error response
@@ -103,6 +106,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 			ID:         user.ID.String(),
 			Email:      user.Email,
 			InboxEmail: user.InboxEmail,
+			ZipCode:    user.ZipCode,
 			CreatedAt:  user.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		},
 		Token: token,
@@ -146,6 +150,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			ID:         user.ID.String(),
 			Email:      user.Email,
 			InboxEmail: user.InboxEmail,
+			ZipCode:    user.ZipCode,
 			CreatedAt:  user.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		},
 		Token: token,
@@ -177,6 +182,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		ID:         user.ID.String(),
 		Email:      user.Email,
 		InboxEmail: user.InboxEmail,
+		ZipCode:    user.ZipCode,
 		CreatedAt:  user.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 
@@ -184,16 +190,26 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	if user.Preferences != nil {
 		makeName := ""
 		modelName := ""
+		trimName := ""
+		baseMSRP := 0.0
 		if user.Preferences.Make != nil {
 			makeName = user.Preferences.Make.Name
 		}
 		if user.Preferences.Model != nil {
 			modelName = user.Preferences.Model.Name
 		}
+		if user.Preferences.Trim != nil {
+			trimName = user.Preferences.Trim.TrimName
+			if user.Preferences.Trim.BaseMSRP.Valid {
+				baseMSRP = user.Preferences.Trim.BaseMSRP.Float64
+			}
+		}
 		userResp.Preferences = &PreferencesResponse{
-			Year:  user.Preferences.Year,
-			Make:  makeName,
-			Model: modelName,
+			Year:     user.Preferences.Year,
+			Make:     makeName,
+			Model:    modelName,
+			Trim:     trimName,
+			BaseMSRP: baseMSRP,
 		}
 	}
 

@@ -49,8 +49,9 @@ func main() {
 	// Initialize services
 	authService := services.NewAuthService(database.DB, cfg.JWTSecret, cfg.JWTExpirationHours, cfg.MailgunDomain)
 	modelsService := services.NewModelsService(database.DB)
-	preferencesService := services.NewPreferencesService(database.DB, modelsService)
 	claudeService := services.NewClaudeService(cfg.AnthropicAPIKey)
+	dealerService := services.NewDealerService(database.DB, claudeService)
+	preferencesService := services.NewPreferencesService(database.DB, modelsService, dealerService)
 	threadService := services.NewThreadService(database.DB)
 	messageService := services.NewMessageService(database.DB, claudeService)
 
@@ -71,6 +72,7 @@ func main() {
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService, gmailService)
 	preferencesHandler := handlers.NewPreferencesHandler(preferencesService)
+	dealerHandler := handlers.NewDealerHandler(dealerService, preferencesService)
 	threadHandler := handlers.NewThreadHandler(threadService)
 	messageHandler := handlers.NewMessageHandler(messageService, emailService)
 	emailHandler := handlers.NewEmailHandler(emailService, cfg.MailgunWebhookSigningKey, database.DB)
@@ -143,6 +145,13 @@ func main() {
 			r.Get("/", preferencesHandler.GetPreferences)
 			r.Post("/", preferencesHandler.CreatePreferences)
 			r.Put("/", preferencesHandler.UpdatePreferences)
+		})
+
+		// Dealer routes (all protected)
+		r.Route("/dealers", func(r chi.Router) {
+			r.Use(middleware.AuthMiddleware(authService))
+			r.Get("/", dealerHandler.GetDealers)
+			r.Put("/", dealerHandler.UpdateDealers)
 		})
 
 		// Dashboard route (protected) - consolidated endpoint for threads, inbox messages, and offers

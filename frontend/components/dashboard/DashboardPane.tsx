@@ -1,20 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { TrackedOffer, Thread, offerAPI } from '@/lib/api';
+import { TrackedOffer, Thread, Dealer, offerAPI, dealersAPI } from '@/lib/api';
 import { IconSearch, IconUpload, IconSettings, IconTrash } from '@tabler/icons-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { estimateInvoicePrice, estimateDealerHoldback, calculateNetNetPrice, getTargetPriceType } from '@/lib/pricing';
 
 interface DashboardPaneProps {
   offers: TrackedOffer[];
   threads: Thread[];
+  dealers?: Dealer[];
   onNavigateToThread?: (threadId: string) => void;
   onOfferDeleted?: () => void;
+  onDealersUpdated?: () => void;
 }
 
 // Utility function to parse price from offer text
@@ -59,7 +62,77 @@ function calculateOttoScore(price: number, marketAverage: number): { score: numb
 }
 
 
-export default function DashboardPane({ offers, threads, onNavigateToThread, onOfferDeleted }: DashboardPaneProps) {
+export default function DashboardPane({ offers, threads, dealers = [], onNavigateToThread, onOfferDeleted, onDealersUpdated }: DashboardPaneProps) {
+  const [contactedDealers, setContactedDealers] = useState<Set<string>>(new Set());
+  const [isUpdatingDealers, setIsUpdatingDealers] = useState(false);
+
+  // Initialize contacted dealers from props
+  useEffect(() => {
+    const contacted = new Set<string>();
+    dealers.forEach(dealer => {
+      if (dealer.contacted) {
+        contacted.add(dealer.id);
+      }
+    });
+    setContactedDealers(contacted);
+  }, [dealers]);
+
+  const handleContactedChange = (dealerId: string, checked: boolean) => {
+    setContactedDealers(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(dealerId);
+      } else {
+        newSet.delete(dealerId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleDiscard = () => {
+    // Reset checkboxes to their original state from props
+    const contacted = new Set<string>();
+    dealers.forEach(dealer => {
+      if (dealer.contacted) {
+        contacted.add(dealer.id);
+      }
+    });
+    setContactedDealers(contacted);
+  };
+
+  const handleSubmit = async () => {
+    setIsUpdatingDealers(true);
+    try {
+      // Update all dealers: set contacted=true for checked ones, contacted=false for unchecked ones
+      const dealersToSetTrue = Array.from(contactedDealers);
+      const dealersToSetFalse = dealers
+        .filter(dealer => !contactedDealers.has(dealer.id))
+        .map(dealer => dealer.id);
+
+      // Update dealers that should be contacted=true
+      if (dealersToSetTrue.length > 0) {
+        await dealersAPI.updateDealers(dealersToSetTrue, true);
+      }
+      
+      // Update dealers that should be contacted=false
+      if (dealersToSetFalse.length > 0) {
+        await dealersAPI.updateDealers(dealersToSetFalse, false);
+      }
+
+      toast.success('Dealers updated successfully');
+      
+      // Notify parent to refresh dealers data
+      if (onDealersUpdated) {
+        onDealersUpdated();
+      }
+    } catch (error: unknown) {
+      console.error('Failed to update dealers:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update dealers';
+      toast.error(errorMessage);
+    } finally {
+      setIsUpdatingDealers(false);
+    }
+  };
   const [deletingOfferId, setDeletingOfferId] = useState<string | null>(null);
 
   const handleDeleteOffer = async (offerId: string, e: React.MouseEvent) => {
@@ -268,67 +341,102 @@ export default function DashboardPane({ offers, threads, onNavigateToThread, onO
               </div>
             </div>
 
-            {/* What a Good Deal Is Section */}
+            {/* Nearby Dealers Section */}
             <div>
               <h2 className="text-2xl font-semibold text-foreground mb-4">
-                What a Good Deal Is
+                Nearby Dealers
               </h2>
-              <div className="bg-card border border-border rounded-lg p-6">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-muted/50 border-b border-border">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-foreground">
-                          If the car is...
-                        </th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-foreground">
-                          Your Target Price
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b border-border">
-                        <td className="px-4 py-3 text-sm text-card-foreground">
-                          <span className="font-medium">High Demand</span> (Toyota Hybrids, Porsche)
-                        </td>
-                        <td className="px-4 py-3 text-sm text-card-foreground">
-                          MSRP is often the floor.
-                        </td>
-                      </tr>
-                      <tr className="border-b border-border">
-                        <td className="px-4 py-3 text-sm text-card-foreground">
-                          <span className="font-medium">Average Demand</span> (Honda, Subaru, Mazda)
-                        </td>
-                        <td className="px-4 py-3 text-sm text-card-foreground">
-                          Invoice is a very fair deal.
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-3 text-sm text-card-foreground">
-                          <span className="font-medium">Low Demand/High Stock</span> (Jeep, Ram, Ford Trucks)
-                        </td>
-                        <td className="px-4 py-3 text-sm text-card-foreground">
-                          Net-Net or below (using hidden incentives).
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                {make && model && (
-                  <div className="mt-4 p-4 bg-muted/30 rounded-lg">
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">For your </span>
-                      <span className="font-medium text-card-foreground">{make} {model}</span>
-                      <span className="text-muted-foreground">, target: </span>
-                      <span className="font-semibold text-card-foreground">
-                        {targetPriceType === 'MSRP' && `$${msrp.toLocaleString(undefined, { maximumFractionDigits: 0 })} (MSRP)`}
-                        {targetPriceType === 'Invoice' && `$${estimatedInvoice.toLocaleString(undefined, { maximumFractionDigits: 0 })} (Invoice)`}
-                        {targetPriceType === 'Net-Net' && `$${netNetPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })} (Net-Net)`}
-                      </span>
-                    </div>
+              <div className="bg-card border border-border rounded-lg overflow-hidden">
+                {dealers.length === 0 ? (
+                  <div className="p-6 text-center text-muted-foreground">
+                    <p className="text-sm">No dealers found. Dealers will appear here once your preferences are set.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-muted/50 border-b border-border">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Name</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Email</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Phone</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Website</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Distance (mi)</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Contacted</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dealers.map((dealer) => (
+                          <tr key={dealer.id} className="border-b border-border last:border-b-0">
+                            <td className="px-4 py-3 text-sm text-card-foreground font-medium">{dealer.name}</td>
+                            <td className="px-4 py-3 text-sm text-card-foreground">
+                              {dealer.email ? (
+                                <a href={`mailto:${dealer.email}`} className="text-primary hover:underline">
+                                  {dealer.email}
+                                </a>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-card-foreground">
+                              {dealer.phone ? (
+                                
+                                <span> {dealer.phone} </span> 
+                                
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-card-foreground">
+                              {dealer.website ? (
+                                <a 
+                                  href={dealer.website} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:underline"
+                                >
+                                  {dealer.website}
+                                </a>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-card-foreground">
+                              {dealer.distance.toFixed(1)}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-card-foreground">
+                              <input
+                                type="checkbox"
+                                checked={contactedDealers.has(dealer.id)}
+                                onChange={(e) => handleContactedChange(dealer.id, e.target.checked)}
+                                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
+              {dealers.length > 0 && (
+                <div className="flex justify-end gap-4 mt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleDiscard}
+                    disabled={isUpdatingDealers}
+                  >
+                    Discard
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={isUpdatingDealers || contactedDealers.size === 0}
+                  >
+                    {isUpdatingDealers ? 'Submitting...' : 'Submit'}
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Offer Comparison Table */}

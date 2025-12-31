@@ -7,7 +7,7 @@ import { AppSidebar } from '@/components/dashboard/AppSidebar';
 import ChatPane from '@/components/dashboard/ChatPane';
 import TopNavBar from '@/components/dashboard/TopNavBar';
 import OffersPane from '@/components/dashboard/OffersPane';
-import { Thread, InboxMessage, TrackedOffer, dashboardAPI } from '@/lib/api';
+import { Thread, InboxMessage, TrackedOffer, Dealer, dashboardAPI, dealersAPI } from '@/lib/api';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { toast } from 'sonner';
 
@@ -20,6 +20,7 @@ function DashboardContent() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [inboxMessages, setInboxMessages] = useState<InboxMessage[]>([]);
   const [offers, setOffers] = useState<TrackedOffer[]>([]);
+  const [dealers, setDealers] = useState<Dealer[]>([]);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [selectedInboxMessage, setSelectedInboxMessage] = useState<InboxMessage | null>(null);
   const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
@@ -67,10 +68,14 @@ function DashboardContent() {
   const loadDashboard = async () => {
     setLoadingDashboard(true);
     try {
-      const data = await dashboardAPI.getDashboard();
-      setThreads(data.threads);
-      setInboxMessages(data.inboxMessages);
-      setOffers(data.offers);
+      const [dashboardData, dealersData] = await Promise.all([
+        dashboardAPI.getDashboard(),
+        dealersAPI.getDealers().catch(() => []), // Don't fail if dealers endpoint fails
+      ]);
+      setThreads(dashboardData.threads);
+      setInboxMessages(dashboardData.inboxMessages);
+      setOffers(dashboardData.offers);
+      setDealers(dealersData);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
@@ -179,9 +184,11 @@ function DashboardContent() {
               selectedInboxMessage={selectedInboxMessage}
               threads={threads}
               offers={offers}
+              dealers={dealers}
               onInboxMessageAssigned={handleInboxMessageAssigned}
               onNavigateToThread={handleNavigateToThread}
               onOfferDeleted={loadDashboard}
+              onDealersUpdated={loadDashboard}
             />
           )}
         </div>

@@ -68,6 +68,7 @@ func (d *Database) AutoMigrate() error {
 		&models.Model{},
 		&models.VehicleTrim{},
 		&models.UserPreferences{},
+		&models.Dealer{},
 		&models.Thread{},
 		&models.Message{},
 		&models.TrackedOffer{},

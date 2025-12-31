@@ -22,10 +22,11 @@ func NewPreferencesHandler(prefsService *services.PreferencesService) *Preferenc
 
 // PreferencesRequest represents the request body for creating/updating preferences
 type PreferencesRequest struct {
-	Year   int    `json:"year"`
-	Make   string `json:"make"`
-	Model  string `json:"model"`
-	TrimID string `json:"trimId,omitempty"` // Optional: empty string or null means "Unspecified"
+	Year    int    `json:"year"`
+	Make    string `json:"make"`
+	Model   string `json:"model"`
+	TrimID  string `json:"trimId,omitempty"` // Optional: empty string or null means "Unspecified"
+	ZipCode string `json:"zipCode,omitempty"` // Optional: zip code for dealer lookup
 }
 
 // PreferencesFullResponse represents preferences in API responses
@@ -131,7 +132,7 @@ func (h *PreferencesHandler) CreatePreferences(w http.ResponseWriter, r *http.Re
 	}
 
 	// Create preferences
-	prefs, err := h.prefsService.CreateUserPreferences(userID, req.Year, req.Make, req.Model, trimID)
+	prefs, err := h.prefsService.CreateUserPreferences(userID, req.Year, req.Make, req.Model, trimID, req.ZipCode)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		if err.Error() == "preferences already exist for this user" {
@@ -210,7 +211,11 @@ func (h *PreferencesHandler) UpdatePreferences(w http.ResponseWriter, r *http.Re
 	}
 
 	// Update preferences
-	prefs, err := h.prefsService.UpdateUserPreferences(userID, req.Year, req.Make, req.Model, trimID)
+	var zipCodePtr *string
+	if req.ZipCode != "" {
+		zipCodePtr = &req.ZipCode
+	}
+	prefs, err := h.prefsService.UpdateUserPreferences(userID, req.Year, req.Make, req.Model, trimID, zipCodePtr)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		if err.Error() == "preferences not found" {

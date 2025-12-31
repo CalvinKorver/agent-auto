@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
+	"log"
 
 	"carbuyer/internal/db/models"
 
@@ -13,12 +14,14 @@ import (
 type PreferencesService struct {
 	db            *gorm.DB
 	modelsService *ModelsService
+	dealerService *DealerService
 }
 
-func NewPreferencesService(db *gorm.DB, modelsService *ModelsService) *PreferencesService {
+func NewPreferencesService(db *gorm.DB, modelsService *ModelsService, dealerService *DealerService) *PreferencesService {
 	return &PreferencesService{
 		db:            db,
 		modelsService: modelsService,
+		dealerService: dealerService,
 	}
 }
 
@@ -40,7 +43,7 @@ func (s *PreferencesService) GetUserPreferences(userID uuid.UUID) (*models.UserP
 }
 
 // CreateUserPreferences creates preferences for a user
-func (s *PreferencesService) CreateUserPreferences(userID uuid.UUID, year int, makeName, modelName string, trimID *uuid.UUID) (*models.UserPreferences, error) {
+func (s *PreferencesService) CreateUserPreferences(userID uuid.UUID, year int, makeName, modelName string, trimID *uuid.UUID, zipCode string) (*models.UserPreferences, error) {
 	// Validate input
 	if year < 1900 || year > 2100 {
 		return nil, errors.New("invalid year")
@@ -85,6 +88,13 @@ func (s *PreferencesService) CreateUserPreferences(userID uuid.UUID, year int, m
 		}
 	}
 
+	// Update user's zip code if provided
+	if zipCode != "" {
+		if err := s.db.Model(&models.User{}).Where("id = ?", userID).Update("zip_code", zipCode).Error; err != nil {
+			return nil, fmt.Errorf("failed to update user zip code: %w", err)
+		}
+	}
+
 	// Create preferences with foreign keys
 	prefs := &models.UserPreferences{
 		UserID:  userID,
@@ -103,11 +113,25 @@ func (s *PreferencesService) CreateUserPreferences(userID uuid.UUID, year int, m
 		return nil, fmt.Errorf("failed to load relationships: %w", err)
 	}
 
+	// Trigger async dealer fetch if zip code is provided
+	if zipCode != "" && s.dealerService != nil {
+		go func() {
+			dealers, err := s.dealerService.FetchDealersForZipCode(zipCode, makeName, modelName, year)
+			if err != nil {
+				log.Printf("Failed to fetch dealers for zip code %s: %v", zipCode, err)
+				return
+			}
+			if err := s.dealerService.SaveDealersForPreferences(prefs.ID, dealers); err != nil {
+				log.Printf("Failed to save dealers for preferences: %v", err)
+			}
+		}()
+	}
+
 	return prefs, nil
 }
 
 // UpdateUserPreferences updates existing preferences
-func (s *PreferencesService) UpdateUserPreferences(userID uuid.UUID, year int, makeName, modelName string, trimID *uuid.UUID) (*models.UserPreferences, error) {
+func (s *PreferencesService) UpdateUserPreferences(userID uuid.UUID, year int, makeName, modelName string, trimID *uuid.UUID, zipCode *string) (*models.UserPreferences, error) {
 	// Validate input
 	if year < 1900 || year > 2100 {
 		return nil, errors.New("invalid year")
@@ -155,6 +179,17 @@ func (s *PreferencesService) UpdateUserPreferences(userID uuid.UUID, year int, m
 		}
 	}
 
+	// Update user's zip code if provided
+	if zipCode != nil && *zipCode != "" {
+		if err := s.db.Model(&models.User{}).Where("id = ?", userID).Update("zip_code", *zipCode).Error; err != nil {
+			return nil, fmt.Errorf("failed to update user zip code: %w", err)
+		}
+	}
+
+	// Check if preferences changed (make, model, year, or zip code)
+	preferencesChanged := prefs.MakeID != make.ID || prefs.ModelID != model.ID || prefs.Year != year
+	zipCodeChanged := zipCode != nil && *zipCode != ""
+
 	// Update preferences with foreign keys
 	prefs.Year = year
 	prefs.MakeID = make.ID
@@ -168,6 +203,32 @@ func (s *PreferencesService) UpdateUserPreferences(userID uuid.UUID, year int, m
 	// Load relationships for response
 	if err := s.db.Preload("Make").Preload("Model").Preload("Trim").First(&prefs, prefs.ID).Error; err != nil {
 		return nil, fmt.Errorf("failed to load relationships: %w", err)
+	}
+
+	// Trigger async dealer fetch if preferences or zip code changed
+	if (preferencesChanged || zipCodeChanged) && s.dealerService != nil {
+		// Get current zip code
+		var user models.User
+		if err := s.db.First(&user, userID).Error; err != nil {
+			log.Printf("Failed to get user for dealer fetch: %v", err)
+		} else if user.ZipCode != "" {
+			// Delete old dealers
+			if err := s.dealerService.DeleteDealersForPreferences(prefs.ID); err != nil {
+				log.Printf("Failed to delete old dealers: %v", err)
+			}
+
+			// Fetch new dealers
+			go func() {
+				dealers, err := s.dealerService.FetchDealersForZipCode(user.ZipCode, makeName, modelName, year)
+				if err != nil {
+					log.Printf("Failed to fetch dealers for zip code %s: %v", user.ZipCode, err)
+					return
+				}
+				if err := s.dealerService.SaveDealersForPreferences(prefs.ID, dealers); err != nil {
+					log.Printf("Failed to save dealers for preferences: %v", err)
+				}
+			}()
+		}
 	}
 
 	return &prefs, nil
