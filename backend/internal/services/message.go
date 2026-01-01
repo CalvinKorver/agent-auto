@@ -42,7 +42,7 @@ func (s *MessageService) GetThreadMessages(threadID, userID uuid.UUID, limit, of
 
 	// Get messages with pagination
 	var messages []models.Message
-	query := s.db.Where("thread_id = ?", threadID).Order("timestamp ASC")
+	query := s.db.Where("thread_id = ?", threadID).Preload("MessageType").Order("timestamp ASC")
 
 	if limit > 0 {
 		query = query.Limit(limit).Offset(offset)
@@ -260,7 +260,7 @@ func (s *MessageService) GetInboxMessages(userID uuid.UUID, limit, offset int) (
 
 	// Get inbox messages with pagination, ordered by timestamp descending (newest first), excluding deleted
 	var messages []models.Message
-	query := s.db.Where("user_id = ? AND thread_id IS NULL AND deleted_at IS NULL", userID).Order("timestamp DESC")
+	query := s.db.Where("user_id = ? AND thread_id IS NULL AND deleted_at IS NULL", userID).Preload("MessageType").Order("timestamp DESC")
 
 	if limit > 0 {
 		query = query.Limit(limit).Offset(offset)
@@ -291,6 +291,14 @@ func (s *MessageService) AssignInboxMessageToThread(messageID, threadID, userID 
 			return fmt.Errorf("inbox message not found")
 		}
 		return fmt.Errorf("failed to verify message: %w", err)
+	}
+
+	// If this is an SMS message and thread doesn't have a phone number, set it from the message
+	if message.SenderPhone != "" && thread.Phone == "" {
+		thread.Phone = message.SenderPhone
+		if err := s.db.Save(&thread).Error; err != nil {
+			return fmt.Errorf("failed to update thread phone: %w", err)
+		}
 	}
 
 	// Assign the message to the thread

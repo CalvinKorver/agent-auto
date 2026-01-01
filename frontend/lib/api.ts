@@ -26,6 +26,7 @@ export interface User {
   email: string;
   createdAt: string;
   inboxEmail?: string;
+  phoneNumber?: string;
   zipCode?: string;
   preferences?: UserPreferences;
   gmailConnected?: boolean;
@@ -45,6 +46,7 @@ export interface Thread {
   id: string;
   sellerName: string;
   sellerType: 'private' | 'dealership' | 'other';
+  phone?: string;
   createdAt: string;
   lastMessageAt?: string;
   messageCount: number;
@@ -58,17 +60,22 @@ export interface Message {
   timestamp: string;
   externalMessageId?: string;
   senderEmail?: string;
+  senderPhone?: string;
   subject?: string;
+  messageType?: 'EMAIL' | 'PHONE';
+  sentViaSMS?: boolean;
 }
 
 export interface InboxMessage {
   id: string;
   sender: 'user' | 'agent' | 'seller';
-  senderEmail: string;
-  subject: string;
+  senderEmail?: string;
+  senderPhone?: string;
+  subject?: string;
   content: string;
   timestamp: string;
   externalMessageId?: string;
+  messageType?: 'EMAIL' | 'PHONE';
 }
 
 export interface TrackedOffer {
@@ -293,6 +300,18 @@ export const gmailAPI = {
 
   createDraft: async (messageId: string, content: string): Promise<void> => {
     await api.post(`/messages/${messageId}/draft`, { content });
+  },
+};
+
+// Twilio SMS API
+export const twilioAPI = {
+  sendSMS: async (messageId: string, content: string): Promise<void> => {
+    await api.post(`/messages/${messageId}/sms-reply`, { content });
+  },
+
+  getPhoneNumber: async (): Promise<{ phoneNumber: string }> => {
+    const response = await api.get<{ phoneNumber: string }>('/sms/phone-number');
+    return response.data;
   },
 };
 

@@ -24,6 +24,10 @@ type Config struct {
 	GoogleClientSecret       string
 	GoogleRedirectURL        string
 	TokenEncryptionKey       string
+	TwilioAccountSID         string
+	TwilioAuthToken          string
+	TwilioMessagingServiceSID string
+	TwilioWebhookURL         string
 }
 
 func Load() (*Config, error) {
@@ -45,6 +49,10 @@ func Load() (*Config, error) {
 	googleClientSecret := getEnv("GOOGLE_CLIENT_SECRET", "")
 	googleRedirectURL := getEnv("GOOGLE_REDIRECT_URL", "http://localhost:3000/oauth/callback")
 	tokenEncryptionKey := getEnv("TOKEN_ENCRYPTION_KEY", "")
+	twilioAccountSID := getEnv("TWILIO_ACCOUNT_SID", "")
+	twilioAuthToken := getEnv("TWILIO_AUTH_TOKEN", "")
+	twilioMessagingServiceSID := getEnv("TWILIO_MESSAGING_SERVICE_SID", "")
+	twilioWebhookURL := getEnv("TWILIO_WEBHOOK_URL", "")
 
 	if databaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL environment variable is required")
@@ -59,22 +67,26 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
-		Port:                     port,
-		Environment:              environment,
-		DatabaseURL:              databaseURL,
-		JWTSecret:                jwtSecret,
-		JWTExpirationHours:       jwtExpirationHours,
-		AnthropicAPIKey:          anthropicAPIKey,
-		AllowedOrigins:           allowedOrigins,
-		RateLimitAuth:            rateLimitAuth,
-		RateLimitAPI:             rateLimitAPI,
-		MailgunAPIKey:            mailgunAPIKey,
-		MailgunDomain:            mailgunDomain,
-		MailgunWebhookSigningKey: mailgunWebhookSigningKey,
-		GoogleClientID:           googleClientID,
-		GoogleClientSecret:       googleClientSecret,
-		GoogleRedirectURL:        googleRedirectURL,
-		TokenEncryptionKey:       tokenEncryptionKey,
+		Port:                      port,
+		Environment:               environment,
+		DatabaseURL:                databaseURL,
+		JWTSecret:                 jwtSecret,
+		JWTExpirationHours:        jwtExpirationHours,
+		AnthropicAPIKey:           anthropicAPIKey,
+		AllowedOrigins:            allowedOrigins,
+		RateLimitAuth:             rateLimitAuth,
+		RateLimitAPI:              rateLimitAPI,
+		MailgunAPIKey:             mailgunAPIKey,
+		MailgunDomain:             mailgunDomain,
+		MailgunWebhookSigningKey:  mailgunWebhookSigningKey,
+		GoogleClientID:            googleClientID,
+		GoogleClientSecret:        googleClientSecret,
+		GoogleRedirectURL:         googleRedirectURL,
+		TokenEncryptionKey:        tokenEncryptionKey,
+		TwilioAccountSID:         twilioAccountSID,
+		TwilioAuthToken:           twilioAuthToken,
+		TwilioMessagingServiceSID:  twilioMessagingServiceSID,
+		TwilioWebhookURL:          twilioWebhookURL,
 	}, nil
 }
 

@@ -17,6 +17,7 @@ import { IconTrash } from '@tabler/icons-react';
 import ArchiveConfirmDialog from './ArchiveConfirmDialog';
 import TrackOfferButton from './TrackOfferButton';
 import SendEmailButton from './SendEmailButton';
+import SendSMSButton from './SendSMSButton';
 import TypingIndicator from './TypingIndicator';
 import DashboardPane from './DashboardPane';
 import { cn } from '@/lib/utils';
@@ -222,6 +223,26 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
       }
     }
     return null;
+  };
+
+  // Helper function to find the most recent replyable SMS message (seller message with senderPhone)
+  // that came before a given message index
+  const findReplyableSMSMessageId = (messageIndex: number): string | null => {
+    // Look backwards from the current message to find the most recent seller message with senderPhone
+    for (let i = messageIndex - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (msg.sender === 'seller' && msg.senderPhone) {
+        return msg.id;
+      }
+    }
+    return null;
+  };
+
+  const handleSMSSuccess = () => {
+    // Reload messages to show the sent SMS
+    if (selectedThreadId) {
+      loadThreadMessages(selectedThreadId);
+    }
   };
 
   const handleRetry = async (failedMessage: DisplayMessage) => {
@@ -490,13 +511,24 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
                           <div className="text-xs text-muted-foreground">
                             {new Date(message.timestamp).toLocaleString()}
                           </div>
-                          {selectedThreadId && !hasError && user?.gmailConnected && (
-                            <div className="pt-1">
-                              <SendEmailButton
-                                messageId={message.id}
-                                messageContent={message.content}
-                                replyableMessageId={findReplyableMessageId(messageIndex)}
-                              />
+                          {selectedThreadId && !hasError && (
+                            <div className="pt-1 flex gap-2">
+                              {user?.gmailConnected && (
+                                <SendEmailButton
+                                  messageId={message.id}
+                                  messageContent={message.content}
+                                  replyableMessageId={findReplyableMessageId(messageIndex)}
+                                />
+                              )}
+                              {selectedThread?.phone && (
+                                <SendSMSButton
+                                  messageId={message.id}
+                                  messageContent={message.content}
+                                  replyableMessageId={findReplyableSMSMessageId(messageIndex)}
+                                  phoneNumber={selectedThread.phone}
+                                  onSuccess={handleSMSSuccess}
+                                />
+                              )}
                             </div>
                           )}
                         </div>
@@ -554,7 +586,12 @@ export default function ChatPane({ selectedThreadId, selectedInboxMessage, threa
                                 Failed to send
                               </span>
                             ) : (
-                              new Date(message.timestamp).toLocaleString()
+                              <>
+                                {new Date(message.timestamp).toLocaleString()}
+                                {message.sentViaSMS && (
+                                  <span className="ml-2 text-green-600 dark:text-green-400">✔️ Sent as SMS</span>
+                                )}
+                              </>
                             )}
                           </div>
 

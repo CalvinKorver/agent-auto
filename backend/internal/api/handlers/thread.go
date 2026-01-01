@@ -33,6 +33,7 @@ type ThreadResponse struct {
 	ID            string  `json:"id"`
 	SellerName    string  `json:"sellerName"`
 	SellerType    string  `json:"sellerType"`
+	Phone         string  `json:"phone,omitempty"`
 	CreatedAt     string  `json:"createdAt"`
 	LastMessageAt *string `json:"lastMessageAt,omitempty"`
 	MessageCount  int     `json:"messageCount"`

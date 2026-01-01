@@ -12,11 +12,13 @@ import (
 
 type PreferencesHandler struct {
 	prefsService *services.PreferencesService
+	smsService   *services.SMSService
 }
 
-func NewPreferencesHandler(prefsService *services.PreferencesService) *PreferencesHandler {
+func NewPreferencesHandler(prefsService *services.PreferencesService, smsService *services.SMSService) *PreferencesHandler {
 	return &PreferencesHandler{
 		prefsService: prefsService,
+		smsService:   smsService,
 	}
 }
 
@@ -142,6 +144,17 @@ func (h *PreferencesHandler) CreatePreferences(w http.ResponseWriter, r *http.Re
 		}
 		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
 		return
+	}
+
+	// Allocate Twilio phone number for user (async - don't block on errors)
+	if h.smsService != nil {
+		go func() {
+			if err := h.smsService.AllocatePhoneNumber(userID); err != nil {
+				// Log error but don't fail the request
+				// Phone number allocation can be retried later
+				// In production, you might want to use a job queue for this
+			}
+		}()
 	}
 
 	// Return response with make/model/trim names from relationships

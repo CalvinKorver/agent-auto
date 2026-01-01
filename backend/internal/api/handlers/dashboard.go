@@ -38,11 +38,13 @@ type DashboardResponse struct {
 type InboxMessageResponse struct {
 	ID                string `json:"id"`
 	Sender            string `json:"sender"`
-	SenderEmail       string `json:"senderEmail"`
-	Subject           string `json:"subject"`
+	SenderEmail       string `json:"senderEmail,omitempty"`
+	SenderPhone       string `json:"senderPhone,omitempty"`
+	Subject           string `json:"subject,omitempty"`
 	Content           string `json:"content"`
 	Timestamp         string `json:"timestamp"`
 	ExternalMessageID string `json:"externalMessageId,omitempty"`
+	MessageType       string `json:"messageType,omitempty"`
 }
 
 // GetDashboard retrieves all dashboard data (threads, inbox messages, and offers) in a single request
@@ -119,6 +121,7 @@ func (h *DashboardHandler) GetDashboard(w http.ResponseWriter, r *http.Request) 
 			ID:           thread.ID.String(),
 			SellerName:   thread.SellerName,
 			SellerType:   string(thread.SellerType),
+			Phone:        thread.Phone,
 			CreatedAt:    thread.CreatedAt.Format("2006-01-02T15:04:05Z"),
 			MessageCount: thread.MessageCount,
 		}
@@ -133,15 +136,20 @@ func (h *DashboardHandler) GetDashboard(w http.ResponseWriter, r *http.Request) 
 
 	// Convert inbox messages
 	for i, msg := range inboxMessages {
-		response.InboxMessages[i] = InboxMessageResponse{
+		inboxResp := InboxMessageResponse{
 			ID:                msg.ID.String(),
 			Sender:            string(msg.Sender),
 			SenderEmail:       msg.SenderEmail,
+			SenderPhone:       msg.SenderPhone,
 			Subject:           msg.Subject,
 			Content:           msg.Content,
 			Timestamp:         msg.Timestamp.Format("2006-01-02T15:04:05Z"),
 			ExternalMessageID: msg.ExternalMessageID,
 		}
+		if msg.MessageType != nil {
+			inboxResp.MessageType = string(msg.MessageType.Type)
+		}
+		response.InboxMessages[i] = inboxResp
 	}
 
 	// Convert offers

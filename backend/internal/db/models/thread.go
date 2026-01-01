@@ -19,6 +19,7 @@ type Thread struct {
 	UserID         uuid.UUID  `gorm:"type:uuid;index;not null" json:"userId"`
 	SellerName     string     `gorm:"not null" json:"sellerName"`
 	SellerType     SellerType `gorm:"type:varchar(20);not null" json:"sellerType"`
+	Phone          string     `json:"phone,omitempty"`
 	CreatedAt      time.Time  `json:"createdAt"`
 	UpdatedAt      time.Time  `json:"updatedAt"`
 	LastMessageAt  *time.Time `json:"lastMessageAt,omitempty"`

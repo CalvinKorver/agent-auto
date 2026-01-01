@@ -69,6 +69,7 @@ func (d *Database) AutoMigrate() error {
 		&models.VehicleTrim{},
 		&models.UserPreferences{},
 		&models.Dealer{},
+		&models.MessageType{},
 		&models.Thread{},
 		&models.Message{},
 		&models.TrackedOffer{},
@@ -76,6 +77,21 @@ func (d *Database) AutoMigrate() error {
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	// Seed MessageType table with EMAIL and PHONE types if they don't exist
+	var emailType models.MessageType
+	if err := d.DB.Where("type = ?", models.MessageTypeEmail).First(&emailType).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			d.DB.Create(&models.MessageType{Type: models.MessageTypeEmail})
+		}
+	}
+
+	var phoneType models.MessageType
+	if err := d.DB.Where("type = ?", models.MessageTypePhone).First(&phoneType).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			d.DB.Create(&models.MessageType{Type: models.MessageTypePhone})
+		}
 	}
 
 	log.Println("Migrations completed successfully")

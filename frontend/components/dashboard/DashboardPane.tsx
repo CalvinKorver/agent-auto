@@ -253,9 +253,13 @@ export default function DashboardPane({ offers, threads, dealers = [], onNavigat
                         <span className="text-card-foreground">Crystal Red</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">Status:</span>
+                        <span className="text-muted-foreground">Phone Number:</span>
                         <span className="text-card-foreground">
-                          Actively searching {threads.length} {threads.length === 1 ? 'dealership' : 'dealerships'} in a 50-mile radius
+                          {user?.phoneNumber ? (
+                            user.phoneNumber.replace(/(\+1)(\d{3})(\d{3})(\d{4})/, '($2) $3-$4')
+                          ) : (
+                            'Generating number...'
+                          )}
                         </span>
                       </div>
                     </div>

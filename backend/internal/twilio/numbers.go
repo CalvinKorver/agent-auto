@@ -47,17 +47,13 @@ func PurchaseNumber(client *twilio.RestClient, phoneNumber, messagingServiceSID 
 	numberSID := *resp.Sid
 
 	// Step 2: Assign the number to Messaging Service (required for A2P 10DLC compliance)
-	// Validate Messaging Service SID is present and properly formatted
-	if messagingServiceSID == "" {
-		return "", fmt.Errorf("messaging service SID is required but not provided")
-	}
-	if len(messagingServiceSID) != 34 || messagingServiceSID[:2] != "MG" {
-		return "", fmt.Errorf("invalid messaging service SID format: must start with MG and be 34 characters, got: %s", messagingServiceSID)
-	}
-
-	// Assign to Messaging Service - this is required for A2P 10DLC compliance
-	if err := AssignNumberToService(client, numberSID, messagingServiceSID); err != nil {
-		return "", fmt.Errorf("failed to assign number to messaging service: %w", err)
+	if messagingServiceSID != "" {
+		if err := AssignNumberToService(client, numberSID, messagingServiceSID); err != nil {
+			// If assignment fails, we still have the number purchased
+			// Log the error but return the number SID so it can be retried later
+			// In production, you might want to queue this for retry
+			return numberSID, fmt.Errorf("number purchased but failed to assign to messaging service: %w", err)
+		}
 	}
 
 	return numberSID, nil

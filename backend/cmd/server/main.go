@@ -10,6 +10,7 @@ import (
 	"carbuyer/internal/config"
 	"carbuyer/internal/db"
 	"carbuyer/internal/services"
+	"carbuyer/internal/twilio"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -69,9 +70,14 @@ func main() {
 
 	emailService := services.NewEmailService(database.DB, cfg.MailgunAPIKey, cfg.MailgunDomain, gmailService)
 
+	// Initialize Twilio service
+	twilioClient := twilio.NewClient(cfg.TwilioAccountSID, cfg.TwilioAuthToken, cfg.TwilioMessagingServiceSID)
+	smsService := services.NewSMSService(database.DB, twilioClient)
+
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService, gmailService)
-	preferencesHandler := handlers.NewPreferencesHandler(preferencesService)
+	preferencesHandler := handlers.NewPreferencesHandler(preferencesService, smsService)
+	smsHandler := handlers.NewSMSHandler(database.DB, smsService, twilioClient, cfg.TwilioAuthToken)
 	dealerHandler := handlers.NewDealerHandler(dealerService, preferencesService)
 	threadHandler := handlers.NewThreadHandler(threadService)
 	messageHandler := handlers.NewMessageHandler(messageService, emailService)
@@ -203,13 +209,21 @@ func main() {
 		r.Route("/messages", func(r chi.Router) {
 			r.Use(middleware.AuthMiddleware(authService))
 			r.Post("/{messageId}/reply-via-gmail", messageHandler.ReplyViaGmail)
+			r.Post("/{messageId}/sms-reply", smsHandler.SendSMS)
 			r.Post("/{messageId}/draft", messageHandler.CreateDraftViaGmail)
+		})
+
+		// SMS routes (protected)
+		r.Route("/sms", func(r chi.Router) {
+			r.Use(middleware.AuthMiddleware(authService))
+			r.Get("/phone-number", smsHandler.GetPhoneNumber)
 		})
 
 		// Webhook routes (public - no auth)
 		r.Route("/webhooks", func(r chi.Router) {
 			r.Post("/email/inbound", emailHandler.InboundEmail)
 			r.Post("/email/test", emailHandler.TestInboundEmail) // For testing without Mailgun
+			r.Post("/sms/inbound", smsHandler.InboundSMS)
 		})
 
 		// Models route (public - no auth)

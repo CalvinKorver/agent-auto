@@ -40,7 +40,10 @@ type MessageResponse struct {
 	Timestamp         string `json:"timestamp"`
 	ExternalMessageID string `json:"externalMessageId,omitempty"`
 	SenderEmail       string `json:"senderEmail,omitempty"`
+	SenderPhone       string `json:"senderPhone,omitempty"`
 	Subject           string `json:"subject,omitempty"`
+	MessageType       string `json:"messageType,omitempty"`
+	SentViaSMS        bool   `json:"sentViaSMS,omitempty"`
 }
 
 // GetMessages retrieves messages for a thread
@@ -101,7 +104,7 @@ func (h *MessageHandler) GetMessages(w http.ResponseWriter, r *http.Request) {
 
 	response.Messages = make([]MessageResponse, len(messages))
 	for i, msg := range messages {
-		response.Messages[i] = MessageResponse{
+		messageResp := MessageResponse{
 			ID:                msg.ID.String(),
 			ThreadID:          msg.ThreadID.String(),
 			Sender:            string(msg.Sender),
@@ -109,8 +112,14 @@ func (h *MessageHandler) GetMessages(w http.ResponseWriter, r *http.Request) {
 			Timestamp:         msg.Timestamp.Format("2006-01-02T15:04:05Z"),
 			ExternalMessageID: msg.ExternalMessageID,
 			SenderEmail:       msg.SenderEmail,
+			SenderPhone:       msg.SenderPhone,
 			Subject:           msg.Subject,
+			SentViaSMS:        msg.SentViaSMS,
 		}
+		if msg.MessageType != nil {
+			messageResp.MessageType = string(msg.MessageType.Type)
+		}
+		response.Messages[i] = messageResp
 	}
 
 	response.Total = total
@@ -187,24 +196,31 @@ func (h *MessageHandler) CreateMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userResp := MessageResponse{
+		ID:                userMsg.ID.String(),
+		ThreadID:          userMsg.ThreadID.String(),
+		Sender:            string(userMsg.Sender),
+		Content:           userMsg.Content,
+		Timestamp:         userMsg.Timestamp.Format("2006-01-02T15:04:05Z"),
+		ExternalMessageID: userMsg.ExternalMessageID,
+		SenderEmail:       userMsg.SenderEmail,
+		SenderPhone:       userMsg.SenderPhone,
+		Subject:           userMsg.Subject,
+		SentViaSMS:        userMsg.SentViaSMS,
+	}
+	if userMsg.MessageType != nil {
+		userResp.MessageType = string(userMsg.MessageType.Type)
+	}
+
 	response := struct {
 		UserMessage  MessageResponse  `json:"userMessage"`
 		AgentMessage *MessageResponse `json:"agentMessage,omitempty"`
 	}{
-		UserMessage: MessageResponse{
-			ID:                userMsg.ID.String(),
-			ThreadID:          userMsg.ThreadID.String(),
-			Sender:            string(userMsg.Sender),
-			Content:           userMsg.Content,
-			Timestamp:         userMsg.Timestamp.Format("2006-01-02T15:04:05Z"),
-			ExternalMessageID: userMsg.ExternalMessageID,
-			SenderEmail:       userMsg.SenderEmail,
-			Subject:           userMsg.Subject,
-		},
+		UserMessage: userResp,
 	}
 
 	if agentMsg != nil {
-		response.AgentMessage = &MessageResponse{
+		agentResp := MessageResponse{
 			ID:                agentMsg.ID.String(),
 			ThreadID:          agentMsg.ThreadID.String(),
 			Sender:            string(agentMsg.Sender),
@@ -212,8 +228,14 @@ func (h *MessageHandler) CreateMessage(w http.ResponseWriter, r *http.Request) {
 			Timestamp:         agentMsg.Timestamp.Format("2006-01-02T15:04:05Z"),
 			ExternalMessageID: agentMsg.ExternalMessageID,
 			SenderEmail:       agentMsg.SenderEmail,
+			SenderPhone:       agentMsg.SenderPhone,
 			Subject:           agentMsg.Subject,
+			SentViaSMS:        agentMsg.SentViaSMS,
 		}
+		if agentMsg.MessageType != nil {
+			agentResp.MessageType = string(agentMsg.MessageType.Type)
+		}
+		response.AgentMessage = &agentResp
 	}
 
 	w.Header().Set("Content-Type", "application/json")
