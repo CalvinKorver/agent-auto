@@ -11,6 +11,7 @@ import {
   Mail,
   Settings,
   User,
+  Copy,
 } from "lucide-react"
 
 import {
@@ -22,6 +23,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -39,6 +48,7 @@ export function NavUser({
   user: {
     name: string
     email: string
+    inboxEmail?: string
   }
   onGoToDashboard?: () => void
 }) {
@@ -50,6 +60,7 @@ export function NavUser({
   const [gmailConnected, setGmailConnected] = useState(false)
   const [gmailEmail, setGmailEmail] = useState<string>()
   const [loading, setLoading] = useState(true)
+  const [showEmailDialog, setShowEmailDialog] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -94,11 +105,12 @@ export function NavUser({
   }
 
   // Use dark logo in light mode, light logo in dark mode
-  const logoSrc = mounted && resolvedTheme === 'light' 
-    ? '/logo-dark-v2.png' 
+  const logoSrc = mounted && resolvedTheme === 'light'
+    ? '/logo-dark-v2.png'
     : '/logo-light-v2.png'
 
   return (
+    <>
     <SidebarMenu>
       <SidebarMenuItem>
         <div className="flex items-center gap-2 w-full">
@@ -175,6 +187,12 @@ export function NavUser({
                   )}
                 </>
               )}
+              {user.inboxEmail && (
+                <DropdownMenuItem onClick={() => setShowEmailDialog(true)}>
+                  <Mail />
+                  Email Forwarding
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => router.push('/settings')}>
                 <Settings />
                 Settings
@@ -189,5 +207,38 @@ export function NavUser({
         </div>
       </SidebarMenuItem>
     </SidebarMenu>
+
+    {/* Email Forwarding Dialog */}
+    {user.inboxEmail && (
+      <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Forward Emails</DialogTitle>
+            <DialogDescription>
+              Forward or BCC emails from sellers to this address and they'll appear in your inbox:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+            <code className="flex-1 text-sm break-all">{user.inboxEmail}</code>
+            <Button
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(user.inboxEmail!);
+                  toast.success('Email copied to clipboard');
+                } catch (err) {
+                  toast.error('Failed to copy email');
+                }
+              }}
+              variant="outline"
+              size="sm"
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copy
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    )}
+  </>
   )
 }

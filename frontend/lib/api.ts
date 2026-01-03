@@ -220,6 +220,11 @@ export const threadAPI = {
   markAsRead: async (threadId: string): Promise<void> => {
     await api.put(`/threads/${threadId}`, { markAsRead: true });
   },
+
+  consolidate: async (threadIds: string[]): Promise<Thread> => {
+    const response = await api.put<Thread>('/threads/consolidate', { threadIds });
+    return response.data;
+  },
 };
 
 // Message API

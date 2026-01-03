@@ -184,6 +184,7 @@ func main() {
 			r.Use(middleware.AuthMiddleware(authService))
 			r.Get("/", threadHandler.GetThreads)
 			r.Post("/", threadHandler.CreateThread)
+			r.Put("/consolidate", threadHandler.ConsolidateThreads)
 			r.Get("/{id}", threadHandler.GetThread)
 			r.Put("/{id}", threadHandler.UpdateThread)
 			r.Delete("/{id}", threadHandler.ArchiveThread)

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { IconMail, IconMessageCircle, IconPlus, IconCopy, IconCheck, IconCurrencyDollar, IconHelpCircle } from '@tabler/icons-react';
+import { IconMail, IconPlus, IconCheck, IconCurrencyDollar, IconCircle, IconCircleCheckFilled } from '@tabler/icons-react';
 import { Thread, TrackedOffer, threadAPI } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { SidebarOfferItem } from './SidebarOfferItem';
@@ -62,9 +62,7 @@ export function AppSidebar({
   ...props
 }: AppSidebarProps) {
   const { user } = useAuth();
-  const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [showNewThreadDialog, setShowNewThreadDialog] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   // New thread form state
   const [newSellerName, setNewSellerName] = useState('');
@@ -72,17 +70,10 @@ export function AppSidebar({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleCopyEmail = async () => {
-    if (user?.inboxEmail) {
-      try {
-        await navigator.clipboard.writeText(user.inboxEmail);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch (err) {
-        console.error('Failed to copy email:', err);
-      }
-    }
-  };
+  // Edit mode state
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedThreadIds, setSelectedThreadIds] = useState<Set<string>>(new Set());
+  const [consolidating, setConsolidating] = useState(false);
 
   const handleCreateThread = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,15 +103,63 @@ export function AppSidebar({
     }
   };
 
+  const handleToggleEditMode = () => {
+    setIsEditMode(!isEditMode);
+    setSelectedThreadIds(new Set());
+  };
+
+  const handleThreadCheckboxToggle = (threadId: string) => {
+    setSelectedThreadIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(threadId)) {
+        newSet.delete(threadId);
+      } else {
+        newSet.add(threadId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleConsolidate = async () => {
+    if (selectedThreadIds.size < 2) return;
+
+    setConsolidating(true);
+    try {
+      const threadIdsArray = Array.from(selectedThreadIds);
+      const consolidatedThread = await threadAPI.consolidate(threadIdsArray);
+
+      setIsEditMode(false);
+      setSelectedThreadIds(new Set());
+
+      // Use toast for success message (assuming toast is available)
+      const { toast } = await import('sonner');
+      toast.success('Threads consolidated successfully');
+
+      onThreadCreated(consolidatedThread); // Updates thread list
+      onThreadSelect(consolidatedThread.id); // Auto-selects consolidated thread
+    } catch (err: any) {
+      const { toast } = await import('sonner');
+      toast.error(err.response?.data?.error || 'Failed to consolidate threads');
+    } finally {
+      setConsolidating(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setSelectedThreadIds(new Set());
+  };
+
   return (
     <>
       <Sidebar {...props}>
 
         <SidebarHeader className="border-sidebar-border h-16 border-b">
-          <NavUser 
+          <NavUser
             user={{
               name: user?.email?.split('@')[0] || 'User',
-              email: user?.email || ''
+              email: user?.email || '',
+              inboxEmail: user?.inboxEmail
             }}
             onGoToDashboard={onGoToDashboard}
           />
@@ -133,18 +172,28 @@ export function AppSidebar({
               <span className="flex items-center gap-2 ">
                 <IconMail className="h-4 w-4" />
                 Messages
-                {totalUnreadCount > 0 && (
+                {totalUnreadCount > 0 && !isEditMode && (
                   <span className="flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-medium text-primary-foreground bg-primary rounded-full">
                     {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
                   </span>
                 )}
               </span>
-              {user?.inboxEmail && (
-                <IconHelpCircle
-                  onClick={() => setShowEmailDialog(true)}
-                  className="h-4 w-4 cursor-pointer hover:text-foreground text-muted-foreground transition-colors"
-                />
-              )}
+              <div className="flex items-center gap-2">
+                {isEditMode ? (
+                  <IconCheck
+                    onClick={handleToggleEditMode}
+                    className="h-4 w-4 cursor-pointer hover:text-primary text-primary transition-colors"
+                    title="Done"
+                  />
+                ) : (
+                  <button
+                    onClick={handleToggleEditMode}
+                    className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                  >
+                    Edit
+                  </button>
+                )}
+              </div>
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <div className="flex flex-col gap-1 px-2">
@@ -153,31 +202,51 @@ export function AppSidebar({
                     No messages
                   </div>
                 ) : (
-                  threads.map((thread) => (
-                    <div
-                      key={thread.id}
-                      onClick={() => onThreadSelect(thread.id)}
-                      className={`cursor-pointer rounded-md p-1.5 hover:bg-accent transition-colors ${
-                        selectedThreadId === thread.id ? 'bg-accent' : ''
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        {thread.unreadCount > 0 && (
+                  threads.map((thread) => {
+                    const isSelected = selectedThreadIds.has(thread.id);
+                    const isActive = selectedThreadId === thread.id;
+
+                    return (
+                      <div
+                        key={thread.id}
+                        onClick={() => {
+                          if (isEditMode) {
+                            handleThreadCheckboxToggle(thread.id);
+                          } else {
+                            onThreadSelect(thread.id);
+                          }
+                        }}
+                        className={`cursor-pointer rounded-md p-1.5 hover:bg-accent transition-colors flex items-center gap-2 ${
+                          isActive && !isEditMode ? 'bg-accent' : ''
+                        } ${isSelected && isEditMode ? 'bg-accent/50' : ''}`}
+                      >
+                        {isEditMode && (
+                          <div className="flex-shrink-0">
+                            {isSelected ? (
+                              <IconCircleCheckFilled className="h-5 w-5 text-primary" />
+                            ) : (
+                              <IconCircle className="h-5 w-5 text-muted-foreground" />
+                            )}
+                          </div>
+                        )}
+
+                        {!isEditMode && thread.unreadCount > 0 && (
                           <span className="flex-shrink-0 w-2 h-2 rounded-full bg-primary" />
                         )}
+
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm truncate leading-tight">
                             {thread.displayName || thread.sellerName || thread.phone || 'Unknown'}
                           </div>
-                          {thread.lastMessagePreview && (
+                          {thread.lastMessagePreview && !isEditMode && (
                             <div className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
                               {thread.lastMessagePreview}
                             </div>
                           )}
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </SidebarGroupContent>
@@ -211,47 +280,35 @@ export function AppSidebar({
         </SidebarContent>
 
         <SidebarFooter className="border-t p-4">
-          <Button
-            onClick={() => setShowNewThreadDialog(true)}
-            className="w-full"
-          >
-            <IconPlus className="h-4 w-4 mr-2" />
-            New Seller Thread
-          </Button>
+          {isEditMode ? (
+            <div className="flex gap-2">
+              <Button
+                onClick={handleConsolidate}
+                disabled={selectedThreadIds.size < 2 || consolidating}
+                className="flex-1"
+              >
+                {consolidating ? 'Consolidating...' : 'Consolidate'}
+              </Button>
+              <Button
+                onClick={handleCancelEdit}
+                disabled={consolidating}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button
+              onClick={() => setShowNewThreadDialog(true)}
+              className="w-full"
+            >
+              <IconPlus className="h-4 w-4 mr-2" />
+              New Seller Thread
+            </Button>
+          )}
         </SidebarFooter>
       </Sidebar>
-
-      {/* Email Dialog */}
-      <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Forward Emails</DialogTitle>
-            <DialogDescription>
-              Forward or BCC emails from sellers to this address and they'll appear in your inbox:
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
-            <code className="flex-1 text-sm break-all">{user?.inboxEmail}</code>
-            <Button
-              onClick={handleCopyEmail}
-              variant="outline"
-              size="sm"
-            >
-              {copied ? (
-                <>
-                  <IconCheck className="h-4 w-4 mr-2" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <IconCopy className="h-4 w-4 mr-2" />
-                  Copy
-                </>
-              )}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* New Thread Dialog */}
       <Dialog open={showNewThreadDialog} onOpenChange={setShowNewThreadDialog}>

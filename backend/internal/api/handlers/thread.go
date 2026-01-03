@@ -48,21 +48,42 @@ type ThreadResponse struct {
 	DisplayName       string  `json:"displayName"`
 }
 
-// CreateThread creates a new thread
-func (h *ThreadHandler) CreateThread(w http.ResponseWriter, r *http.Request) {
+// Helper methods to reduce code duplication
+
+// getUserID extracts and validates the user ID from context
+func (h *ThreadHandler) getUserID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 	userID, ok := middleware.GetUserIDFromContext(r.Context())
 	if !ok {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "unauthorized"})
+		h.respondError(w, http.StatusUnauthorized, "unauthorized")
+		return uuid.Nil, false
+	}
+	return userID, true
+}
+
+// respondError sends a JSON error response
+func (h *ThreadHandler) respondError(w http.ResponseWriter, statusCode int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(ErrorResponse{Error: message})
+}
+
+// respondJSON sends a JSON success response
+func (h *ThreadHandler) respondJSON(w http.ResponseWriter, statusCode int, data any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(data)
+}
+
+// CreateThread creates a new thread
+func (h *ThreadHandler) CreateThread(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.getUserID(w, r)
+	if !ok {
 		return
 	}
 
 	var req CreateThreadRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid request body"})
+		h.respondError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
@@ -71,9 +92,7 @@ func (h *ThreadHandler) CreateThread(w http.ResponseWriter, r *http.Request) {
 
 	thread, err := h.threadService.CreateThread(userID, req.SellerName, sellerType)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
+		h.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -83,9 +102,7 @@ func (h *ThreadHandler) CreateThread(w http.ResponseWriter, r *http.Request) {
 		displayName = thread.Phone
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(ThreadResponse{
+	h.respondJSON(w, http.StatusCreated, ThreadResponse{
 		ID:          thread.ID.String(),
 		SellerName:  thread.SellerName,
 		SellerType:  string(thread.SellerType),
@@ -100,19 +117,14 @@ func (h *ThreadHandler) CreateThread(w http.ResponseWriter, r *http.Request) {
 
 // GetThreads retrieves all threads for the authenticated user
 func (h *ThreadHandler) GetThreads(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.GetUserIDFromContext(r.Context())
+	userID, ok := h.getUserID(w, r)
 	if !ok {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
 	threadsWithCounts, err := h.threadService.GetUserThreads(userID)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "failed to retrieve threads"})
+		h.respondError(w, http.StatusInternalServerError, "failed to retrieve threads")
 		return
 	}
 
@@ -142,39 +154,30 @@ func (h *ThreadHandler) GetThreads(w http.ResponseWriter, r *http.Request) {
 		response.Threads[i] = threadResp
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	h.respondJSON(w, http.StatusOK, response)
 }
 
 // GetThread retrieves a specific thread
 func (h *ThreadHandler) GetThread(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.GetUserIDFromContext(r.Context())
+	userID, ok := h.getUserID(w, r)
 	if !ok {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
 	threadIDStr := chi.URLParam(r, "id")
 	threadID, err := uuid.Parse(threadIDStr)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid thread ID"})
+		h.respondError(w, http.StatusBadRequest, "invalid thread ID")
 		return
 	}
 
 	thread, err := h.threadService.GetThreadByID(threadID, userID)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
+		statusCode := http.StatusInternalServerError
 		if err.Error() == "thread not found" {
-			w.WriteHeader(http.StatusNotFound)
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
+			statusCode = http.StatusNotFound
 		}
-		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
+		h.respondError(w, statusCode, err.Error())
 		return
 	}
 
@@ -202,92 +205,70 @@ func (h *ThreadHandler) GetThread(w http.ResponseWriter, r *http.Request) {
 		resp.LastMessageAt = &lastMsg
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(resp)
+	h.respondJSON(w, http.StatusOK, resp)
 }
 
 // ArchiveThread archives (soft deletes) a thread
 func (h *ThreadHandler) ArchiveThread(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.GetUserIDFromContext(r.Context())
+	userID, ok := h.getUserID(w, r)
 	if !ok {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
 	threadIDStr := chi.URLParam(r, "id")
 	threadID, err := uuid.Parse(threadIDStr)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid thread ID"})
+		h.respondError(w, http.StatusBadRequest, "invalid thread ID")
 		return
 	}
 
 	err = h.threadService.ArchiveThread(threadID, userID)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
+		statusCode := http.StatusInternalServerError
 		if err.Error() == "thread not found" {
-			w.WriteHeader(http.StatusNotFound)
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
+			statusCode = http.StatusNotFound
 		}
-		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
+		h.respondError(w, statusCode, err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "thread archived successfully"})
+	h.respondJSON(w, http.StatusOK, map[string]string{"message": "thread archived successfully"})
 }
 
 // UpdateThread updates a thread's seller name and/or marks it as read
 func (h *ThreadHandler) UpdateThread(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.GetUserIDFromContext(r.Context())
+	userID, ok := h.getUserID(w, r)
 	if !ok {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
 	threadIDStr := chi.URLParam(r, "id")
 	threadID, err := uuid.Parse(threadIDStr)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid thread ID"})
+		h.respondError(w, http.StatusBadRequest, "invalid thread ID")
 		return
 	}
 
 	var req UpdateThreadRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid request body"})
+		h.respondError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	// Validate that at least one field is being updated
 	if req.SellerName == nil && req.MarkAsRead == nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "at least one field must be provided"})
+		h.respondError(w, http.StatusBadRequest, "at least one field must be provided")
 		return
 	}
 
 	// Handle marking thread as read
 	if req.MarkAsRead != nil && *req.MarkAsRead {
 		if err := h.threadService.MarkThreadAsRead(threadID, userID); err != nil {
-			w.Header().Set("Content-Type", "application/json")
+			statusCode := http.StatusInternalServerError
 			if err.Error() == "thread not found" {
-				w.WriteHeader(http.StatusNotFound)
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
+				statusCode = http.StatusNotFound
 			}
-			json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
+			h.respondError(w, statusCode, err.Error())
 			return
 		}
 	}
@@ -298,34 +279,28 @@ func (h *ThreadHandler) UpdateThread(w http.ResponseWriter, r *http.Request) {
 	if req.SellerName != nil {
 		// Validate seller name
 		if *req.SellerName == "" {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(ErrorResponse{Error: "seller name cannot be empty"})
+			h.respondError(w, http.StatusBadRequest, "seller name cannot be empty")
 			return
 		}
 
 		thread, err = h.threadService.UpdateThreadName(threadID, userID, *req.SellerName)
 		if err != nil {
-			w.Header().Set("Content-Type", "application/json")
+			statusCode := http.StatusInternalServerError
 			if err.Error() == "thread not found" {
-				w.WriteHeader(http.StatusNotFound)
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
+				statusCode = http.StatusNotFound
 			}
-			json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
+			h.respondError(w, statusCode, err.Error())
 			return
 		}
 	} else {
 		// If only marking as read, fetch the thread to return
 		thread, err = h.threadService.GetThreadByID(threadID, userID)
 		if err != nil {
-			w.Header().Set("Content-Type", "application/json")
+			statusCode := http.StatusInternalServerError
 			if err.Error() == "thread not found" {
-				w.WriteHeader(http.StatusNotFound)
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
+				statusCode = http.StatusNotFound
 			}
-			json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
+			h.respondError(w, statusCode, err.Error())
 			return
 		}
 	}
@@ -350,43 +325,100 @@ func (h *ThreadHandler) UpdateThread(w http.ResponseWriter, r *http.Request) {
 		resp.LastMessageAt = &lastMsg
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(resp)
+	h.respondJSON(w, http.StatusOK, resp)
 }
 
 // MarkThreadAsRead marks a thread as read
 func (h *ThreadHandler) MarkThreadAsRead(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.GetUserIDFromContext(r.Context())
+	userID, ok := h.getUserID(w, r)
 	if !ok {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
 	threadIDStr := chi.URLParam(r, "id")
 	threadID, err := uuid.Parse(threadIDStr)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid thread ID"})
+		h.respondError(w, http.StatusBadRequest, "invalid thread ID")
 		return
 	}
 
 	err = h.threadService.MarkThreadAsRead(threadID, userID)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
+		statusCode := http.StatusInternalServerError
 		if err.Error() == "thread not found" {
-			w.WriteHeader(http.StatusNotFound)
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
+			statusCode = http.StatusNotFound
 		}
-		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
+		h.respondError(w, statusCode, err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "thread marked as read"})
+	h.respondJSON(w, http.StatusOK, map[string]string{"message": "thread marked as read"})
+}
+
+// ConsolidateThreadsRequest represents the request to consolidate threads
+type ConsolidateThreadsRequest struct {
+	ThreadIDs []string `json:"threadIds"`
+}
+
+// ConsolidateThreads consolidates multiple threads into one
+func (h *ThreadHandler) ConsolidateThreads(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.getUserID(w, r)
+	if !ok {
+		return
+	}
+
+	var req ConsolidateThreadsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	// Validate minimum thread count
+	if len(req.ThreadIDs) < 2 {
+		h.respondError(w, http.StatusBadRequest, "at least 2 threads required")
+		return
+	}
+
+	// Convert string IDs to UUIDs
+	threadUUIDs := make([]uuid.UUID, len(req.ThreadIDs))
+	for i, idStr := range req.ThreadIDs {
+		threadID, err := uuid.Parse(idStr)
+		if err != nil {
+			h.respondError(w, http.StatusBadRequest, "invalid thread ID: "+idStr)
+			return
+		}
+		threadUUIDs[i] = threadID
+	}
+
+	// Perform consolidation
+	consolidatedThread, err := h.threadService.ConsolidateThreads(userID, threadUUIDs)
+	if err != nil {
+		statusCode := http.StatusInternalServerError
+		if err.Error() == "at least 2 threads required for consolidation" ||
+			err.Error() == "one or more threads not found or already archived" {
+			statusCode = http.StatusBadRequest
+		}
+		h.respondError(w, statusCode, err.Error())
+		return
+	}
+
+	// Build response
+	threadResp := ThreadResponse{
+		ID:                consolidatedThread.ID.String(),
+		SellerName:        consolidatedThread.SellerName,
+		SellerType:        string(consolidatedThread.SellerType),
+		Phone:             consolidatedThread.Phone,
+		CreatedAt:         consolidatedThread.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		MessageCount:      consolidatedThread.MessageCount,
+		UnreadCount:       consolidatedThread.UnreadCount,
+		LastMessagePreview: consolidatedThread.LastMessagePreview,
+		DisplayName:       consolidatedThread.DisplayName,
+	}
+
+	if consolidatedThread.LastMessageAt != nil {
+		lastMsg := consolidatedThread.LastMessageAt.Format("2006-01-02T15:04:05Z")
+		threadResp.LastMessageAt = &lastMsg
+	}
+
+	h.respondJSON(w, http.StatusOK, threadResp)
 }

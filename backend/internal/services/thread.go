@@ -213,3 +213,154 @@ func (s *ThreadService) MarkThreadAsRead(threadID, userID uuid.UUID) error {
 
 	return nil
 }
+
+// selectParentThread determines which thread should be the parent
+// Logic: Prefer thread with displayName (SellerName != Phone), fallback to first in selection order
+func selectParentThread(threads []models.Thread, orderedIDs []uuid.UUID) models.Thread {
+	// Create map for O(1) lookup
+	threadMap := make(map[uuid.UUID]models.Thread)
+	for _, t := range threads {
+		threadMap[t.ID] = t
+	}
+
+	// First pass: find threads with meaningful displayName (not just phone)
+	var threadsWithName []models.Thread
+	var threadsWithoutName []models.Thread
+
+	for _, id := range orderedIDs {
+		thread, exists := threadMap[id]
+		if !exists {
+			continue
+		}
+
+		// Check if has meaningful display name (SellerName exists and is not just the phone)
+		hasDisplayName := thread.SellerName != "" && thread.SellerName != thread.Phone
+
+		if hasDisplayName {
+			threadsWithName = append(threadsWithName, thread)
+		} else {
+			threadsWithoutName = append(threadsWithoutName, thread)
+		}
+	}
+
+	// Return first with displayName, or first in order if none have displayName
+	if len(threadsWithName) > 0 {
+		return threadsWithName[0]
+	}
+	if len(threadsWithoutName) > 0 {
+		return threadsWithoutName[0]
+	}
+
+	// Fallback (shouldn't happen with validation)
+	return threads[0]
+}
+
+// ConsolidateThreads consolidates multiple threads into a single parent thread
+// Parent selection logic:
+// 1. Prefer thread with non-empty displayName over empty/phone-only displayName
+// 2. If tied, use first thread in selection order
+func (s *ThreadService) ConsolidateThreads(userID uuid.UUID, threadIDs []uuid.UUID) (*ThreadWithCounts, error) {
+	// Validation
+	if len(threadIDs) < 2 {
+		return nil, errors.New("at least 2 threads required for consolidation")
+	}
+
+	// Begin transaction
+	tx := s.db.Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Fetch all threads and verify ownership + existence
+	var threads []models.Thread
+	if err := tx.Where("id IN ? AND user_id = ? AND deleted_at IS NULL", threadIDs, userID).
+		Find(&threads).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to fetch threads: %w", err)
+	}
+
+	// Validate all threads were found
+	if len(threads) != len(threadIDs) {
+		tx.Rollback()
+		return nil, errors.New("one or more threads not found or already archived")
+	}
+
+	// Determine parent thread using selection logic
+	parentThread := selectParentThread(threads, threadIDs)
+
+	// Collect IDs of threads to archive (all except parent)
+	var sourceThreadIDs []uuid.UUID
+	for _, t := range threads {
+		if t.ID != parentThread.ID {
+			sourceThreadIDs = append(sourceThreadIDs, t.ID)
+		}
+	}
+
+	// Move all messages from source threads to parent
+	if err := tx.Model(&models.Message{}).
+		Where("thread_id IN ? AND deleted_at IS NULL", sourceThreadIDs).
+		Update("thread_id", parentThread.ID).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to move messages: %w", err)
+	}
+
+	// Move all tracked offers from source threads to parent
+	if err := tx.Model(&models.TrackedOffer{}).
+		Where("thread_id IN ?", sourceThreadIDs).
+		Update("thread_id", parentThread.ID).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to move tracked offers: %w", err)
+	}
+
+	// Update parent's LastMessageAt to latest across all threads
+	var latestMessageTime *time.Time
+	for _, t := range threads {
+		if t.LastMessageAt != nil {
+			if latestMessageTime == nil || t.LastMessageAt.After(*latestMessageTime) {
+				latestMessageTime = t.LastMessageAt
+			}
+		}
+	}
+	if latestMessageTime != nil && (parentThread.LastMessageAt == nil || latestMessageTime.After(*parentThread.LastMessageAt)) {
+		parentThread.LastMessageAt = latestMessageTime
+		if err := tx.Save(&parentThread).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to update parent thread: %w", err)
+		}
+	}
+
+	// Archive source threads (soft delete)
+	now := time.Now()
+	if err := tx.Model(&models.Thread{}).
+		Where("id IN ?", sourceThreadIDs).
+		Update("deleted_at", now).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to archive source threads: %w", err)
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	// Return consolidated thread with counts (reuse existing logic)
+	// We need to fetch it with the same service instance to get counts
+	threadsWithCounts, err := s.GetUserThreads(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch updated thread: %w", err)
+	}
+
+	// Find the parent thread in the results
+	for _, t := range threadsWithCounts {
+		if t.ID == parentThread.ID {
+			return &t, nil
+		}
+	}
+
+	return nil, errors.New("consolidated thread not found")
+}
